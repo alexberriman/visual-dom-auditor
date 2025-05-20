@@ -2,6 +2,7 @@
 
 import { parseCli } from "./cli";
 import { preparePage, closeBrowser } from "./core/browser";
+import { analyzePage, validateResult } from "./core/analyzer";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -30,36 +31,30 @@ const main = async (): Promise<number> => {
       return 1;
     }
 
-    const { browser } = prepareResult.val;
+    const { browser, page } = prepareResult.val;
 
     try {
-      // Placeholder for the actual analysis
-      // Will implement detectors in future tasks
-      console.log("Page prepared successfully. Ready for analysis.");
-      console.log("Analysis complete!");
+      console.log("Page prepared successfully. Running analysis...");
 
-      // Placeholder for the actual results
-      const results = {
-        url: config.url,
-        timestamp: new Date().toISOString(),
-        viewport: config.viewport,
-        issues: [],
-        metadata: {
-          totalIssuesFound: 0,
-          criticalIssues: 0,
-          majorIssues: 0,
-          minorIssues: 0,
-          issuesByType: {
-            overlap: 0,
-            padding: 0,
-            spacing: 0,
-            "container-overflow": 0,
-            scrollbar: 0,
-            layout: 0,
-            centering: 0,
-          },
-        },
-      };
+      // Run analysis with empty detector list for now
+      // Detectors will be implemented in future tasks
+      const analysisResult = await analyzePage(page, config, []);
+
+      if (analysisResult.err) {
+        console.error(`Analysis error: ${analysisResult.val.message}`);
+        return 1;
+      }
+
+      const results = analysisResult.val;
+
+      // Validate results
+      if (!validateResult(results)) {
+        console.error("Error: Generated invalid results structure");
+        return 1;
+      }
+
+      console.log("Analysis complete!");
+      console.log(`Found ${results.metadata.totalIssuesFound} issues.`);
 
       if (config.savePath) {
         console.log(`Saving results to ${config.savePath}`);

@@ -18,7 +18,7 @@ A Bun + TypeScript CLI tool that uses Playwright to launch a headless browser, s
 
 - [x] Create `src/cli/index.ts` for CLI entrypoint
 - [x] Create `src/core/browser.ts` for launching and preparing page
-- [ ] Create `src/core/analyzer.ts` to coordinate detection modules
+- [x] Create `src/core/analyzer.ts` to coordinate detection modules
 - [ ] Create `src/core/detectors/overlap.ts` for overlap detection
 - [ ] Create `src/core/detectors/padding.ts` for padding detection
 - [ ] Create `src/core/detectors/spacing.ts` for spacing detection
@@ -66,10 +66,10 @@ A Bun + TypeScript CLI tool that uses Playwright to launch a headless browser, s
 
 ## 🧩 Analyzer Coordination
 
-- [ ] Run all detectors sequentially, not in parallel
-- [ ] Aggregate all results into a single list of issues
-- [ ] Generate metadata including URL, viewport, and timestamp
-- [ ] Validate results with Zod schema
+- [x] Run all detectors sequentially, not in parallel
+- [x] Aggregate all results into a single list of issues
+- [x] Generate metadata including URL, viewport, and timestamp
+- [x] Validate results with Zod schema
 
 ---
 
