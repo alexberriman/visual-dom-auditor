@@ -20,7 +20,7 @@ A Bun + TypeScript CLI tool that uses Playwright to launch a headless browser, s
 - [x] Create `src/core/browser.ts` for launching and preparing page
 - [x] Create `src/core/analyzer.ts` to coordinate detection modules
 - [x] Create `src/core/detectors/overlap.ts` for overlap detection
-- [ ] Create `src/core/detectors/padding.ts` for padding detection
+- [x] Create `src/core/detectors/padding.ts` for padding detection
 - [ ] Create `src/core/detectors/spacing.ts` for spacing detection
 - [x] Create `src/types/issues.ts` to define issue types and Zod schema
 - [x] Create `src/types/config.ts` for parsed CLI config types
@@ -51,8 +51,10 @@ A Bun + TypeScript CLI tool that uses Playwright to launch a headless browser, s
 
 ## 🔍 Issue Detectors
 
+Logically group detectors into their own files to create a more modular structure
+
 - [x] Detect overlapping elements using bounding box comparison
-- [ ] Detect buttons or elements with zero or broken padding
+- [x] Detect buttons or elements with zero or broken padding
 - [ ] Detect sibling elements with spacing below threshold (e.g., inline nav items, footer links)
 - [ ] Detect container overflow detector - Detect if a child extends beyond the bounds of its parent container. Useful for layout bugs like horizontal scrollbars or broken grids.
   - [ ] Use bounding box comparison between parent and each child.
@@ -60,7 +62,6 @@ A Bun + TypeScript CLI tool that uses Playwright to launch a headless browser, s
   - [ ] Horizontal scrolling (overflow-x) When it logically shouldn't (based on layout width)
 - [ ] Broken Flex/Grid Layout Detector - Look for: Flex/grid containers with overflowing or squished children. Misused min-width, max-width, or gap
 - [ ] Centering Failures - Detect horizontally or vertically "centered" elements that are actually misaligned
-
 
 ---
 
