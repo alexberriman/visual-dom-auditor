@@ -1,0 +1,14 @@
+{
+  "read": [
+    "**/*"
+  ],
+  "write": [
+    "**/*"
+  ],
+  "executions": [
+    "npm",
+    "yarn",
+    "pnpm",
+    "npx"
+  ]
+}
