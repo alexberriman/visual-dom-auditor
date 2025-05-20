@@ -3,12 +3,14 @@ import overlapDetector from "./overlap";
 import paddingDetector from "./padding";
 import spacingDetector from "./spacing";
 import containerOverflowDetector from "./container-overflow";
+import scrollbarDetector from "./scrollbar";
 
 // Export individual detectors for direct usage
 export { OverlapDetector } from "./overlap";
 export { PaddingDetector } from "./padding";
 export { SpacingDetector } from "./spacing";
 export { ContainerOverflowDetector } from "./container-overflow";
+export { ScrollbarDetector } from "./scrollbar";
 
 // Export the default detector instances
 export const detectors: Record<string, Detector> = {
@@ -16,6 +18,7 @@ export const detectors: Record<string, Detector> = {
   padding: paddingDetector,
   spacing: spacingDetector,
   "container-overflow": containerOverflowDetector,
+  scrollbar: scrollbarDetector,
 };
 
 // Export an array of all detector instances

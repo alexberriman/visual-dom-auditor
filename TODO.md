@@ -24,7 +24,7 @@ A Bun + TypeScript CLI tool that uses Playwright to launch a headless browser, s
 - [x] Create `src/core/detectors/spacing.ts` for spacing detection
 - [x] Create `src/types/issues.ts` to define issue types and Zod schema
 - [x] Create `src/types/config.ts` for parsed CLI config types
-- [ ] Create `src/utils/logger.ts` for debug logging
+- [x] Create `src/utils/logger.ts` for debug logging
 
 ---
 
@@ -58,8 +58,8 @@ Logically group detectors into their own files to create a more modular structur
 - [x] Detect sibling elements with spacing below threshold (e.g., inline nav items, footer links)
 - [x] Detect container overflow detector - Detect if a child extends beyond the bounds of its parent container. Useful for layout bugs like horizontal scrollbars or broken grids.
   - [x] Use bounding box comparison between parent and each child.
-- [ ] Unexpected Scrollbars - Flag pages where layout is wider than the viewport due to rogue elements.
-  - [ ] Horizontal scrolling (overflow-x) When it logically shouldn't (based on layout width)
+- [x] Unexpected Scrollbars - Flag pages where layout is wider than the viewport due to rogue elements.
+  - [x] Horizontal scrolling (overflow-x) When it logically shouldn't (based on layout width)
 - [ ] Broken Flex/Grid Layout Detector - Look for: Flex/grid containers with overflowing or squished children. Misused min-width, max-width, or gap
 - [ ] Centering Failures - Detect horizontally or vertically "centered" elements that are actually misaligned
 
@@ -85,3 +85,4 @@ Logically group detectors into their own files to create a more modular structur
 
 - [x] Add `bin` entry to `package.json` to enable global CLI usage
 - [ ] Update the `README.md` with full usage instructions, examples, and make it sexy as fuck
+- [ ] Create a basic github actions workflow file which runs lint, test and typecheck on pushes to main
