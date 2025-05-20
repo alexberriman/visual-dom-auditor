@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a React frontend project with automated testing and quality checks.
+This is a Node fullstack project with automated testing and quality checks.
 
 ## Code Style Conventions
 
@@ -100,13 +100,13 @@ All UI components and interfaces should be CUTTING-EDGE, MODERN, and SEXY:
 - **Unit Testing**: Vitest
   - Leveraging Vite for fast test execution
   - Do NOT use Jest configuration or dependencies
-- **Component Testing**: Storybook
+- **Component Testing**: Testing-library
 - **Test Location**: Tests should be placed adjacent to implementation files
   - Do NOT use __tests__ directories
 
 ### Build Tools
 
-- **Bundler**: Vite
+- **Bundler**: Tsup
 - **CI/CD**: github-actions
 
 **All presentational ("dumb") components should have a corresponding Storybook story file.**
@@ -115,75 +115,58 @@ All UI components and interfaces should be CUTTING-EDGE, MODERN, and SEXY:
 
 ## Project Architecture
 
-Follow a clear separation of concerns with component-based architecture. Separate UI components from business logic and data fetching.
+Follow a clear separation of concerns between frontend and backend. Use well-defined interfaces to communicate between layers.
 
 
-## Frontend-Only Architecture
+## CLI Architecture
 
-This todo app runs entirely in the browser with these key principles:
+This CLI tool follows these architectural principles:
 
-- **localStorage**: All data persistence using browser's localStorage
-- **No Backend**: Zero server dependencies, runs completely offline
-- **Instant Performance**: No API calls, everything happens locally
-- **Privacy-First**: User data never leaves their device
-- **State Management**: Zustand for global state, synced with localStorage
-- **Offline-Ready**: Full functionality without internet connection
-- **PWA Support**: Installable as a progressive web app
-
-
-## Visual Design Principles
-
-This app prioritizes stunning visual design:
-
-- **Glassmorphism**: Frosted glass effects throughout the UI
-- **Smooth Animations**: Framer Motion for fluid interactions
-- **Micro-interactions**: Delightful feedback for every action
-- **Dynamic Backgrounds**: Animated gradients and particle effects
-- **Dark/Light Modes**: Beautiful themes with smooth transitions
-- **3D Effects**: Subtle depth with shadows and transforms
-- **Custom Cursors**: Unique cursor styles for different states
+- **Command-line Interface**: Uses Commander.js for argument parsing
+- **Browser Automation**: Playwright for DOM inspection and analysis
+- **TypeScript**: Strong typing throughout the codebase
+- **Error Handling**: Functional error handling with ts-results
+- **Modular Design**: Separate concerns into focused modules
+- **Pure Functions**: Maximize testability with pure functions
 
 
-## Component Structure
+## Module Structure
 
-Each component should be in its own directory with the following files:
+The project should be organized as follows:
 
-- `index.ts`: Barrel file exporting the component
-- `component-name.tsx`: The actual component implementation
-- `component-name.stories.tsx`: Storybook stories for the component
-
-Example component structure:
 ```
 src/
-  components/           # All UI components
-    ui/                 # @shadcn/ui components
-      button/
-      card/
-      input/
-    tasks/             # Task-related components
-      task-card/
-        index.ts
-        task-card.tsx
-        task-card.stories.tsx
-  hooks/               # Custom React hooks
-  stores/              # Zustand stores
-  utils/               # Shared utilities
-  types/               # TypeScript type definitions
+  index.ts          # CLI entry point (#!/usr/bin/env node)
+  auditor.ts        # Core DOM auditing functionality
+  analyzers/        # Different DOM analyzers
+    overlap.ts      # Detect overlapping elements
+    padding.ts      # Check button padding
+    spacing.ts      # Check element spacing
+  types/            # TypeScript type definitions
+    index.ts
+    options.ts
+    errors.ts
+    issues.ts       # Types for detected issues
+  utils/            # Utility functions
+    viewport.ts
+    error.ts
+    validator.ts
+    dom-helpers.ts  # DOM traversal helpers
+  config/           # Configuration handling
+    defaults.ts
 ```
 
 
-## UI Design Guidelines
+## Error Handling Guidelines
 
-When designing and building UI components:
+When implementing error handling:
 
-- Make it 🔥, sexy as fuck and beautiful for 2025
-- Implement glassmorphic effects with blur and transparency
-- Use vibrant gradients and bold color schemes
-- Add smooth spring animations to all interactions
-- Create satisfying hover and click states
-- Design with dark mode as the primary theme
-- Use generous spacing and modern typography
-- Ensure every pixel is polished to perfection
-- Add particle effects and celebrations for task completion
+- Use ts-results for all fallible operations
+- Return Result<T, E> from functions that might fail
+- Provide descriptive error messages
+- Never silence errors or use try/catch except at boundaries
+- Exit with appropriate exit codes (0 for success, 1 for errors)
+- Use console.error for error output
+- Use console.log for success output
 
 

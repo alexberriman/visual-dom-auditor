@@ -6,35 +6,35 @@ A Bun + TypeScript CLI tool that uses Playwright to launch a headless browser, s
 
 ## 📦 Project Setup
 
-- [ ] Create initial `README.md` with a short placeholder project description
-- [ ] Initialize Bun project (`bun init`)
-- [ ] Set up TypeScript config (`bun tsc --init`)
-- [ ] Install dependencies: `playwright`, `commander`, `zod`, `chalk`
-- [ ] Install dev dependencies: `@types/node`
+- [x] Create initial `README.md` with a short placeholder project description
+- [x] Initialize Bun project (`bun init`)
+- [x] Set up TypeScript config (`bun tsc --init`)
+- [x] Install dependencies: `playwright`, `commander`, `zod`, `chalk`
+- [x] Install dev dependencies: `@types/node`
 
 ---
 
 ## 📁 File Structure
 
-- [ ] Create `src/cli/index.ts` for CLI entrypoint
+- [x] Create `src/cli/index.ts` for CLI entrypoint
 - [ ] Create `src/core/browser.ts` for launching and preparing page
 - [ ] Create `src/core/analyzer.ts` to coordinate detection modules
 - [ ] Create `src/core/detectors/overlap.ts` for overlap detection
 - [ ] Create `src/core/detectors/padding.ts` for padding detection
 - [ ] Create `src/core/detectors/spacing.ts` for spacing detection
-- [ ] Create `src/types/issues.ts` to define issue types and Zod schema
-- [ ] Create `src/types/config.ts` for parsed CLI config types
+- [x] Create `src/types/issues.ts` to define issue types and Zod schema
+- [x] Create `src/types/config.ts` for parsed CLI config types
 - [ ] Create `src/utils/logger.ts` for debug logging
 
 ---
 
 ## 🧠 CLI Functionality
 
-- [ ] Accept `--url` argument (required)
-- [ ] Accept `--viewport` argument (`desktop`, `tablet`, `mobile`, or custom `widthxheight`)
-- [ ] Accept `--format` argument (`json`)
-- [ ] Accept `--save` argument to specify output file path
-- [ ] Parse, validate, and normalize CLI args
+- [x] Accept `--url` argument (required)
+- [x] Accept `--viewport` argument (`desktop`, `tablet`, `mobile`, or custom `widthxheight`)
+- [x] Accept `--format` argument (`json`)
+- [x] Accept `--save` argument to specify output file path
+- [x] Parse, validate, and normalize CLI args
 
 ---
 
@@ -62,7 +62,6 @@ A Bun + TypeScript CLI tool that uses Playwright to launch a headless browser, s
 - [ ] Centering Failures - Detect horizontally or vertically "centered" elements that are actually misaligned
 
 
-
 ---
 
 ## 🧩 Analyzer Coordination
@@ -77,11 +76,11 @@ A Bun + TypeScript CLI tool that uses Playwright to launch a headless browser, s
 ## 📤 Output
 
 - [ ] If `--save` is provided, write JSON output to specified file
-- [ ] Otherwise, pretty-print JSON output to stdout
+- [x] Otherwise, pretty-print JSON output to stdout
 
 ---
 
 ## 🧼 Finishing Touches
 
-- [ ] Add `bin` entry to `package.json` to enable global CLI usage
+- [x] Add `bin` entry to `package.json` to enable global CLI usage
 - [ ] Update the `README.md` with full usage instructions, examples, and make it sexy as fuck

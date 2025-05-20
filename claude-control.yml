@@ -36,7 +36,7 @@ claude_md:
   skip_tech_guidelines: true
 
   # Explicitly define project category
-  project_category: "cli"
+  project_category: "fullstack"
 
   # Code style conventions for Claude.md
   code_style:
