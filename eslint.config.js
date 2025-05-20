@@ -29,6 +29,9 @@ export default [
         exports: "readonly",
         require: "readonly",
         global: "readonly",
+        // Browser globals (for page.evaluate)
+        document: "readonly",
+        window: "readonly",
       },
     },
     plugins: {

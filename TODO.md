@@ -17,7 +17,7 @@ A Bun + TypeScript CLI tool that uses Playwright to launch a headless browser, s
 ## 📁 File Structure
 
 - [x] Create `src/cli/index.ts` for CLI entrypoint
-- [ ] Create `src/core/browser.ts` for launching and preparing page
+- [x] Create `src/core/browser.ts` for launching and preparing page
 - [ ] Create `src/core/analyzer.ts` to coordinate detection modules
 - [ ] Create `src/core/detectors/overlap.ts` for overlap detection
 - [ ] Create `src/core/detectors/padding.ts` for padding detection
@@ -40,12 +40,12 @@ A Bun + TypeScript CLI tool that uses Playwright to launch a headless browser, s
 
 ## 🌐 Browser & Page Setup
 
-- [ ] Launch headless Chromium via Playwright
-- [ ] Apply correct viewport dimensions based on `--viewport`
-- [ ] Navigate to the provided `--url`
-- [ ] Wait for page load (`load` or `networkidle`)
-- [ ] Scroll entire page top to bottom and back up to trigger lazy-loaded elements
-- [ ] Wait briefly to ensure DOM is stable after scrolling
+- [x] Launch headless Chromium via Playwright
+- [x] Apply correct viewport dimensions based on `--viewport`
+- [x] Navigate to the provided `--url`
+- [x] Wait for page load (`load` or `networkidle`)
+- [x] Scroll entire page top to bottom and back up to trigger lazy-loaded elements
+- [x] Wait briefly to ensure DOM is stable after scrolling
 
 ---
 
@@ -75,7 +75,7 @@ A Bun + TypeScript CLI tool that uses Playwright to launch a headless browser, s
 
 ## 📤 Output
 
-- [ ] If `--save` is provided, write JSON output to specified file
+- [x] If `--save` is provided, write JSON output to specified file
 - [x] Otherwise, pretty-print JSON output to stdout
 
 ---
