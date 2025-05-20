@@ -2,17 +2,20 @@ import type { Detector } from "../analyzer";
 import overlapDetector from "./overlap";
 import paddingDetector from "./padding";
 import spacingDetector from "./spacing";
+import containerOverflowDetector from "./container-overflow";
 
 // Export individual detectors for direct usage
 export { OverlapDetector } from "./overlap";
 export { PaddingDetector } from "./padding";
 export { SpacingDetector } from "./spacing";
+export { ContainerOverflowDetector } from "./container-overflow";
 
 // Export the default detector instances
 export const detectors: Record<string, Detector> = {
   overlap: overlapDetector,
   padding: paddingDetector,
   spacing: spacingDetector,
+  "container-overflow": containerOverflowDetector,
 };
 
 // Export an array of all detector instances

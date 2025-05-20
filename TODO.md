@@ -56,8 +56,8 @@ Logically group detectors into their own files to create a more modular structur
 - [x] Detect overlapping elements using bounding box comparison
 - [x] Detect buttons or elements with zero or broken padding
 - [x] Detect sibling elements with spacing below threshold (e.g., inline nav items, footer links)
-- [ ] Detect container overflow detector - Detect if a child extends beyond the bounds of its parent container. Useful for layout bugs like horizontal scrollbars or broken grids.
-  - [ ] Use bounding box comparison between parent and each child.
+- [x] Detect container overflow detector - Detect if a child extends beyond the bounds of its parent container. Useful for layout bugs like horizontal scrollbars or broken grids.
+  - [x] Use bounding box comparison between parent and each child.
 - [ ] Unexpected Scrollbars - Flag pages where layout is wider than the viewport due to rogue elements.
   - [ ] Horizontal scrolling (overflow-x) When it logically shouldn't (based on layout width)
 - [ ] Broken Flex/Grid Layout Detector - Look for: Flex/grid containers with overflowing or squished children. Misused min-width, max-width, or gap
