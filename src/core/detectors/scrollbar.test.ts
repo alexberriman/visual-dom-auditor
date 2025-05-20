@@ -2,6 +2,12 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 import { type Page } from "playwright-core";
 import { ScrollbarDetector } from "./scrollbar";
 
+// Define a type for the mock evaluate function
+type MockEvaluateFunction = {
+  mockResolvedValue: (value: unknown) => void;
+  mockRejectedValue: (error: Error) => void;
+};
+
 // Mock the page object
 const createMockPage = () => {
   return {
@@ -21,7 +27,7 @@ describe("ScrollbarDetector", () => {
 
   test("should return empty array when no scrollbars are detected", async () => {
     // Mock evaluation returning no scrollbars
-    vi.mocked(mockPage.evaluate).mockResolvedValue({
+    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue({
       horizontal: null,
       vertical: null,
     });
@@ -35,7 +41,7 @@ describe("ScrollbarDetector", () => {
 
   test("should detect horizontal scrollbar issues", async () => {
     // Mock evaluation returning a horizontal scrollbar
-    vi.mocked(mockPage.evaluate).mockResolvedValue({
+    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue({
       horizontal: {
         direction: "horizontal",
         viewport: {
@@ -79,7 +85,7 @@ describe("ScrollbarDetector", () => {
     });
 
     // Mock evaluation returning a horizontal scrollbar with ignored element
-    vi.mocked(mockPage.evaluate).mockResolvedValue({
+    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue({
       horizontal: {
         direction: "horizontal",
         viewport: {
@@ -112,7 +118,7 @@ describe("ScrollbarDetector", () => {
 
   test("should not report vertical scrollbar when expected", async () => {
     // Mock evaluation returning only a vertical scrollbar
-    vi.mocked(mockPage.evaluate).mockResolvedValue({
+    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue({
       horizontal: null,
       vertical: {
         direction: "vertical",
@@ -142,7 +148,7 @@ describe("ScrollbarDetector", () => {
     });
 
     // Mock evaluation returning only a vertical scrollbar
-    vi.mocked(mockPage.evaluate).mockResolvedValue({
+    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue({
       horizontal: null,
       vertical: {
         direction: "vertical",
@@ -170,7 +176,9 @@ describe("ScrollbarDetector", () => {
 
   test("should handle evaluation errors", async () => {
     // Mock evaluation throwing an error
-    vi.mocked(mockPage.evaluate).mockRejectedValue(new Error("Evaluation failed"));
+    (mockPage.evaluate as unknown as MockEvaluateFunction).mockRejectedValue(
+      new Error("Evaluation failed")
+    );
 
     const result = await detector.detect(mockPage);
     expect(result.ok).toBe(false);

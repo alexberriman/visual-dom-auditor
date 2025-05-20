@@ -1,39 +1,203 @@
-# DOMQA
+# Visual DOM Auditor
 
-**DOMQA** is a CLI tool for detecting critical layout issues on webpages using a headless browser.
+<div align="center">
+  
+  ![Visual DOM Auditor Logo](https://via.placeholder.com/200x200.png?text=VDA)
+  
+  **A powerful CLI tool that detects critical layout issues on websites using headless browser technology.**
+  
+  [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+  [![npm version](https://img.shields.io/npm/v/@alexberriman/visual-dom-auditor.svg)](https://www.npmjs.com/package/@alexberriman/visual-dom-auditor)
+  [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-blue)](https://www.typescriptlang.org/)
+  
+</div>
 
-Built with **Bun + TypeScript + Playwright**, it programmatically loads a page, scrolls to trigger lazy-loaded content, and analyzes the rendered DOM for real, visual issues like:
+---
 
-- Overlapping elements
-- Buttons with missing or broken padding
-- Inline or adjacent elements with no spacing
+## ✨ Features
 
-This is *not* a linter, accessibility checker, or design audit tool — it focuses entirely on **hard rendering bugs** visible in the actual layout.
+- **🤖 Automated Visual Testing:** Launches headless Chrome to render and analyze web pages
+- **🧠 Smart Detection:** Identifies visual issues that traditional linters miss
+- **📱 Responsive Testing:** Tests layouts across multiple device sizes (mobile, tablet, desktop)
+- **🔍 Comprehensive Analysis:** Detects various layout issues:
+  - Overlapping elements
+  - Buttons with missing/broken padding
+  - Elements with insufficient spacing
+  - Container overflow issues
+  - Unexpected scrollbars
+  - Flex/Grid layout problems
+- **📊 Structured Output:** Exports detailed reports in JSON format
+- **🔄 CI/CD Integration:** Easily integrates with GitHub Actions and other CI pipelines
 
-## Key Features
-
-- Launches Chromium headlessly to render the target URL
-- Supports custom and preset viewports (mobile, tablet, desktop)
-- Scrolls the full page to trigger lazy content
-- Detects visual bugs like:
-  - Overlaps (e.g. nav over logo)
-  - Zero-padding on buttons
-  - Missing space between footer links or nav items
-- Outputs results as structured JSON
-- Works entirely from the CLI
-
-## Example Use
+## 🚀 Installation
 
 ```bash
-bun run domqa --url https://example.com --viewport desktop --format json --save report.json
+# Install globally
+npm install -g @alexberriman/visual-dom-auditor
+
+# Or use with npx without installing
+npx @alexberriman/visual-dom-auditor --url https://example.com
 ```
 
-## Coming Soon
+## 📋 Usage
 
-- Auto-screenshot annotation
-- GitHub Action integration
-- Self-healing CSS suggestions
+```bash
+visual-dom-auditor --url https://example.com
+```
 
-## License
+### Command Line Options
 
-MIT
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--url <url>` | URL of the website to analyze (required) | - |
+| `--viewport <viewport>` | Viewport size: `desktop`, `tablet`, `mobile`, or custom `widthxheight` (e.g., `1366x768`) | `desktop` (1920x1080) |
+| `--format <format>` | Output format | `json` |
+| `--save <path>` | Save output to file (e.g., `./reports/audit.json`) | - |
+
+### Examples
+
+```bash
+# Basic usage (outputs to console)
+visual-dom-auditor --url https://example.com
+
+# Test with a mobile viewport
+visual-dom-auditor --url https://example.com --viewport mobile
+
+# Use custom viewport dimensions
+visual-dom-auditor --url https://example.com --viewport 1366x768
+
+# Save results to a file
+visual-dom-auditor --url https://example.com --save ./reports/audit.json
+```
+
+## 🧪 Detection Types
+
+Visual DOM Auditor includes multiple specialized detectors that find common layout issues:
+
+### Overlap Detector
+
+Identifies elements that visually overlap, which may indicate z-index issues or positioning bugs.
+
+```json
+{
+  "type": "overlap",
+  "elements": [
+    {"selector": ".header-logo", "description": "Header logo"},
+    {"selector": ".main-nav", "description": "Navigation menu"}
+  ],
+  "severity": "critical",
+  "position": {"x": 120, "y": 50}
+}
+```
+
+### Padding Detector
+
+Finds buttons and interactive elements with missing or insufficient padding.
+
+```json
+{
+  "type": "padding",
+  "element": {"selector": ".submit-button", "description": "Submit button"},
+  "paddingValues": {"top": 0, "right": 4, "bottom": 0, "left": 4},
+  "severity": "warning"
+}
+```
+
+### Spacing Detector
+
+Detects adjacent elements (like navigation items or footer links) with inadequate spacing.
+
+### Container Overflow Detector
+
+Identifies elements that extend beyond their parent containers.
+
+### Scrollbar Detector
+
+Flags unexpected horizontal scrollbars caused by content extending beyond viewport.
+
+### Flex/Grid Layout Detector
+
+Finds issues with flexible layouts, such as overflowing or squished children.
+
+## 🔄 CI/CD Integration
+
+Visual DOM Auditor can be integrated into your continuous integration workflow:
+
+### GitHub Actions Example
+
+```yaml
+name: Layout Validation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm install -g @alexberriman/visual-dom-auditor
+      - name: Run visual audit
+        run: visual-dom-auditor --url https://staging.example.com --save report.json
+      - name: Archive results
+        uses: actions/upload-artifact@v3
+        with:
+          name: audit-report
+          path: report.json
+```
+
+## 📊 Interpreting Results
+
+The tool outputs a structured JSON report with the following format:
+
+```json
+{
+  "metadata": {
+    "url": "https://example.com",
+    "timestamp": "2023-05-20T10:15:30Z",
+    "viewport": {"width": 1920, "height": 1080},
+    "totalIssuesFound": 3
+  },
+  "issues": [
+    {
+      "type": "overlap",
+      "elements": [
+        {"selector": "#header-logo", "description": "Site logo"},
+        {"selector": "#nav-menu", "description": "Navigation menu"}
+      ],
+      "severity": "critical",
+      "position": {"x": 150, "y": 50}
+    },
+    // Additional issues...
+  ]
+}
+```
+
+## 🗺️ Roadmap
+
+- 📸 Auto-screenshot annotations
+- 🧩 Plugin system for custom detectors
+- 🔧 Self-healing CSS suggestions
+- 🌐 Multi-URL batch processing
+- 🎯 DOM targeting by area (header, footer, sidebar)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

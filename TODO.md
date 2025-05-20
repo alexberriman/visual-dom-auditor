@@ -60,8 +60,8 @@ Logically group detectors into their own files to create a more modular structur
   - [x] Use bounding box comparison between parent and each child.
 - [x] Unexpected Scrollbars - Flag pages where layout is wider than the viewport due to rogue elements.
   - [x] Horizontal scrolling (overflow-x) When it logically shouldn't (based on layout width)
-- [ ] Broken Flex/Grid Layout Detector - Look for: Flex/grid containers with overflowing or squished children. Misused min-width, max-width, or gap
-- [ ] Centering Failures - Detect horizontally or vertically "centered" elements that are actually misaligned
+- [x] Broken Flex/Grid Layout Detector - Look for: Flex/grid containers with overflowing or squished children. Misused min-width, max-width, or gap
+- [x] Centering Failures - Detect horizontally or vertically "centered" elements that are actually misaligned
 
 ---
 
@@ -84,5 +84,5 @@ Logically group detectors into their own files to create a more modular structur
 ## 🧼 Finishing Touches
 
 - [x] Add `bin` entry to `package.json` to enable global CLI usage
-- [ ] Update the `README.md` with full usage instructions, examples, and make it sexy as fuck
-- [ ] Create a basic github actions workflow file which runs lint, test and typecheck on pushes to main
+- [x] Update the `README.md` with full usage instructions, examples, and make it sexy as fuck
+- [x] Create a basic github actions workflow file which runs lint, test and typecheck on pushes to main
