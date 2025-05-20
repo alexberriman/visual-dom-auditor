@@ -12,7 +12,9 @@ The following actions are strictly prohibited in this codebase:
 
 3. **NEVER skip Husky pre-commit checks** with `--no-verify` or similar flags. These checks exist to maintain code quality.
 
-Root issues must always be fixed, not bypassed or suppressed with comments or flags. We maintain high code quality by addressing problems, not hiding them.
+4. **NEVER use the `--no-verify` flag** with git commands (`git commit --no-verify`, `git push --no-verify`, etc.). This bypasses critical quality checks and is absolutely forbidden under all circumstances.
+
+Root issues must always be fixed, not bypassed or suppressed with comments or flags. We maintain high code quality by addressing problems, not hiding them. The use of `--no-verify` or similar mechanisms to circumvent quality controls is considered a serious violation of project standards.
 
 ## Project Architecture
 
