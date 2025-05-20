@@ -5,6 +5,7 @@ import { preparePage, closeBrowser } from "./core/browser";
 import { analyzePage, validateResult } from "./core/analyzer";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import allDetectors from "./core/detectors";
 
 /**
  * Main entry point for the visual-dom-auditor CLI
@@ -36,9 +37,8 @@ const main = async (): Promise<number> => {
     try {
       console.log("Page prepared successfully. Running analysis...");
 
-      // Run analysis with empty detector list for now
-      // Detectors will be implemented in future tasks
-      const analysisResult = await analyzePage(page, config, []);
+      // Run analysis with all implemented detectors
+      const analysisResult = await analyzePage(page, config, allDetectors);
 
       if (analysisResult.err) {
         console.error(`Analysis error: ${analysisResult.val.message}`);
