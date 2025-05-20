@@ -24,14 +24,14 @@ const main = async (): Promise<number> => {
 
     // Launch browser and prepare page
     const prepareResult = await preparePage(config);
-    
+
     if (prepareResult.err) {
       console.error(`Error: ${prepareResult.val.message}`);
       return 1;
     }
-    
+
     const { browser } = prepareResult.val;
-    
+
     try {
       // Placeholder for the actual analysis
       // Will implement detectors in future tasks
@@ -66,13 +66,9 @@ const main = async (): Promise<number> => {
         // Create directory if it doesn't exist
         const directory = path.dirname(config.savePath);
         await fs.mkdir(directory, { recursive: true });
-        
+
         // Write results to file
-        await fs.writeFile(
-          config.savePath,
-          JSON.stringify(results, null, 2),
-          "utf8"
-        );
+        await fs.writeFile(config.savePath, JSON.stringify(results, null, 2), "utf8");
       } else {
         console.log(JSON.stringify(results, null, 2));
       }

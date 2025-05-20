@@ -25,25 +25,22 @@ const launchBrowser = async (): Promise<Result<Browser, BrowserError>> => {
 /**
  * Open a new page and navigate to the specified URL
  */
-const openPage = async (
-  browser: Browser,
-  url: string,
-): Promise<Result<Page, BrowserError>> => {
+const openPage = async (browser: Browser, url: string): Promise<Result<Page, BrowserError>> => {
   try {
     const page = await browser.newPage();
-    
+
     // Navigate to the URL and wait for the page to load
     const response = await page.goto(url, {
       waitUntil: "networkidle",
       timeout: 30_000,
     });
-    
+
     if (!response || !response.ok()) {
       return Err({
         message: `Failed to load URL: ${url}. Status: ${response?.status() || "unknown"}`,
       });
     }
-    
+
     return Ok(page);
   } catch (error) {
     return Err({
@@ -59,7 +56,7 @@ const openPage = async (
 const setViewport = async (
   page: Page,
   width: number,
-  height: number,
+  height: number
 ): Promise<Result<void, BrowserError>> => {
   try {
     await page.setViewportSize({ width, height });
@@ -81,16 +78,16 @@ const scrollPage = async (page: Page): Promise<Result<void, BrowserError>> => {
     // Using page.evaluate() which runs in the browser context where document/window are available
     const scrollHeight = await page.evaluate(() => document.body.scrollHeight);
     const viewportHeight = await page.evaluate(() => window.innerHeight);
-    
+
     for (let scrollY = 0; scrollY < scrollHeight; scrollY += viewportHeight / 2) {
       await page.evaluate((y) => window.scrollTo(0, y), scrollY);
       // Wait a short time between scrolls to let content load
       await page.waitForTimeout(200);
     }
-    
+
     // Scroll back to the top
     await page.evaluate(() => window.scrollTo(0, 0));
-    
+
     return Ok(undefined);
   } catch (error) {
     return Err({
@@ -107,10 +104,10 @@ const waitForStability = async (page: Page): Promise<Result<void, BrowserError>>
   try {
     // Wait a moment for any javascript to finish executing
     await page.waitForTimeout(500);
-    
+
     // Wait for a stable load state
     await page.waitForLoadState("networkidle");
-    
+
     return Ok(undefined);
   } catch (error) {
     return Err({
@@ -122,7 +119,7 @@ const waitForStability = async (page: Page): Promise<Result<void, BrowserError>>
 
 /**
  * Prepares a browser page for analysis
- * 
+ *
  * 1. Launches a headless browser
  * 2. Opens a page with the specified URL
  * 3. Sets the viewport size
@@ -130,50 +127,46 @@ const waitForStability = async (page: Page): Promise<Result<void, BrowserError>>
  * 5. Waits for the page to be stable
  */
 export const preparePage = async (
-  config: Config,
+  config: Config
 ): Promise<Result<{ browser: Browser; page: Page }, BrowserError>> => {
   // Launch browser
   const browserResult = await launchBrowser();
   if (browserResult.err) {
     return Err(browserResult.val);
   }
-  
+
   const browser = browserResult.val;
-  
+
   // Open page
   const pageResult = await openPage(browser, config.url);
   if (pageResult.err) {
     await browser.close();
     return Err(pageResult.val);
   }
-  
+
   const page = pageResult.val;
-  
+
   // Set viewport
-  const viewportResult = await setViewport(
-    page,
-    config.viewport.width,
-    config.viewport.height,
-  );
+  const viewportResult = await setViewport(page, config.viewport.width, config.viewport.height);
   if (viewportResult.err) {
     await browser.close();
     return Err(viewportResult.val);
   }
-  
+
   // Scroll page
   const scrollResult = await scrollPage(page);
   if (scrollResult.err) {
     await browser.close();
     return Err(scrollResult.val);
   }
-  
+
   // Wait for stability
   const stabilityResult = await waitForStability(page);
   if (stabilityResult.err) {
     await browser.close();
     return Err(stabilityResult.val);
   }
-  
+
   return Ok({ browser, page });
 };
 
