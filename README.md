@@ -16,7 +16,7 @@
 
 ## ✨ Features
 
-- **🤖 Automated Visual Testing:** Launches headless Chrome to render and analyze web pages
+- **🤖 Automated Visual Testing:** Launches headless browser to render and analyze web pages
 - **🧠 Smart Detection:** Identifies visual issues that traditional linters miss
 - **📱 Responsive Testing:** Tests layouts across multiple device sizes (mobile, tablet, desktop)
 - **🔍 Comprehensive Analysis:** Detects various layout issues:
@@ -26,6 +26,7 @@
   - Container overflow issues
   - Unexpected scrollbars
   - Flex/Grid layout problems
+  - Centering issues (disabled by default)
 - **📊 Structured Output:** Exports detailed reports in JSON format
 - **🔄 CI/CD Integration:** Easily integrates with GitHub Actions and other CI pipelines
 
@@ -42,7 +43,11 @@ npx @alexberriman/visual-dom-auditor --url https://example.com
 ## 📋 Usage
 
 ```bash
+# If installed globally
 visual-dom-auditor --url https://example.com
+
+# Without installing (recommended)
+npx @alexberriman/visual-dom-auditor --url https://example.com
 ```
 
 ### Command Line Options
@@ -58,23 +63,23 @@ visual-dom-auditor --url https://example.com
 
 ```bash
 # Basic usage (outputs to console)
-visual-dom-auditor --url https://example.com
+npx @alexberriman/visual-dom-auditor --url https://example.com
 
 # Test with a mobile viewport
-visual-dom-auditor --url https://example.com --viewport mobile
+npx @alexberriman/visual-dom-auditor --url https://example.com --viewport mobile
 
 # Use custom viewport dimensions
-visual-dom-auditor --url https://example.com --viewport 1366x768
+npx @alexberriman/visual-dom-auditor --url https://example.com --viewport 1366x768
 
 # Save results to a file
-visual-dom-auditor --url https://example.com --save ./reports/audit.json
+npx @alexberriman/visual-dom-auditor --url https://example.com --save ./reports/audit.json
 ```
 
 ## 🧪 Detection Types
 
 Visual DOM Auditor includes multiple specialized detectors that find common layout issues:
 
-> **Note:** The centering detector is disabled by default due to a high rate of false positives. See [Advanced Configuration](#-advanced-configuration) to learn how to enable it.
+> **Note:** The centering detector is disabled by default due to a high rate of false positives. See [Advanced Configuration](#%EF%B8%8F-advanced-configuration) to learn how to enable it.
 
 ### Overlap Detector
 
@@ -88,20 +93,22 @@ Identifies elements that visually overlap, which may indicate z-index issues or 
     {"selector": ".main-nav", "description": "Navigation menu"}
   ],
   "severity": "critical",
-  "position": {"x": 120, "y": 50}
+  "position": {"x": 120, "y": 50},
+  "overlapPercentage": 65
 }
 ```
 
 ### Padding Detector
 
-Finds buttons and interactive elements with missing or insufficient padding.
+Finds buttons and interactive elements with missing or insufficient padding, harming usability.
 
 ```json
 {
   "type": "padding",
   "element": {"selector": ".submit-button", "description": "Submit button"},
   "paddingValues": {"top": 0, "right": 4, "bottom": 0, "left": 4},
-  "severity": "warning"
+  "insufficientSides": ["top", "bottom", "left"],
+  "severity": "major"
 }
 ```
 
@@ -109,17 +116,64 @@ Finds buttons and interactive elements with missing or insufficient padding.
 
 Detects adjacent elements (like navigation items or footer links) with inadequate spacing.
 
+```json
+{
+  "type": "spacing",
+  "elements": [
+    {"selector": ".nav-item:nth-child(1)", "description": "Navigation item"},
+    {"selector": ".nav-item:nth-child(2)", "description": "Navigation item"}
+  ],
+  "spacing": 2,
+  "recommendedSpacing": 8,
+  "severity": "minor"
+}
+```
+
 ### Container Overflow Detector
 
-Identifies elements that extend beyond their parent containers.
+Identifies elements that extend beyond their parent containers, breaking layouts.
+
+```json
+{
+  "type": "container-overflow",
+  "elements": {
+    "child": {"selector": ".product-image", "description": "Product image"},
+    "parent": {"selector": ".product-card", "description": "Product card"}
+  },
+  "overflowDirection": "right",
+  "overflowAmount": 15,
+  "severity": "major"
+}
+```
 
 ### Scrollbar Detector
 
 Flags unexpected horizontal scrollbars caused by content extending beyond viewport.
 
+```json
+{
+  "type": "scrollbar",
+  "element": {"selector": ".content-section", "description": "Content section"},
+  "overflowAmount": 320,
+  "severity": "critical"
+}
+```
+
 ### Flex/Grid Layout Detector
 
-Finds issues with flexible layouts, such as overflowing or squished children.
+Finds issues with flexible layouts, such as overflowing or squished flex/grid children.
+
+```json
+{
+  "type": "flex-grid",
+  "container": {"selector": ".grid-container", "description": "Grid container"},
+  "problematicChildren": [
+    {"selector": ".grid-item:nth-child(3)", "description": "Grid item"}
+  ],
+  "issue": "overflow",
+  "severity": "major"
+}
+```
 
 ## 🔄 CI/CD Integration
 
@@ -144,10 +198,10 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
-      - name: Install dependencies
-        run: npm install -g @alexberriman/visual-dom-auditor
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
       - name: Run visual audit
-        run: visual-dom-auditor --url https://staging.example.com --save report.json
+        run: npx @alexberriman/visual-dom-auditor --url https://staging.example.com --save report.json
       - name: Archive results
         uses: actions/upload-artifact@v3
         with:
@@ -165,7 +219,19 @@ The tool outputs a structured JSON report with the following format:
     "url": "https://example.com",
     "timestamp": "2023-05-20T10:15:30Z",
     "viewport": {"width": 1920, "height": 1080},
-    "totalIssuesFound": 3
+    "totalIssuesFound": 3,
+    "criticalIssues": 1,
+    "majorIssues": 1,
+    "minorIssues": 1,
+    "issuesByType": {
+      "overlap": 1,
+      "padding": 1,
+      "spacing": 1,
+      "container-overflow": 0,
+      "scrollbar": 0,
+      "layout": 0,
+      "centering": 0
+    }
   },
   "issues": [
     {
@@ -175,7 +241,8 @@ The tool outputs a structured JSON report with the following format:
         {"selector": "#nav-menu", "description": "Navigation menu"}
       ],
       "severity": "critical",
-      "position": {"x": 150, "y": 50}
+      "position": {"x": 150, "y": 50},
+      "overlapPercentage": 75
     },
     // Additional issues...
   ]
@@ -189,6 +256,7 @@ The tool outputs a structured JSON report with the following format:
 - 🔧 Self-healing CSS suggestions
 - 🌐 Multi-URL batch processing
 - 🎯 DOM targeting by area (header, footer, sidebar)
+- 📱 Interactive report with visual overlays
 
 ## ⚙️ Advanced Configuration
 
