@@ -1,6 +1,6 @@
 import { type Page } from "playwright-core";
 import { type Detector } from "../analyzer";
-import { Result, Ok, Err } from "ts-results";
+import { Ok, Err, type Result } from "../../types/ts-results";
 import type { ElementLocation, PaddingIssue } from "../../types/issues";
 
 type PaddingError = {
@@ -14,6 +14,7 @@ type PaddingError = {
 interface ElementWithPadding {
   selector: string;
   tagName: string;
+  textContent?: string;
   bounds: {
     x: number;
     y: number;
@@ -33,8 +34,7 @@ interface ElementWithPadding {
  */
 const determineSeverity = (
   element: ElementWithPadding,
-  insufficientSides: ("top" | "right" | "bottom" | "left")[],
-  minimumPadding: number
+  insufficientSides: ("top" | "right" | "bottom" | "left")[]
 ): "critical" | "major" | "minor" => {
   // Critical: No padding on interactive elements or buttons
   if (
@@ -149,9 +149,19 @@ const getElementsWithPadding = async (
         const paddingBottom = Number.parseInt(styles.paddingBottom, 10);
         const paddingLeft = Number.parseInt(styles.paddingLeft, 10);
 
+        // Get text content (with trimming and truncation)
+        let textContent = element.textContent || "";
+        textContent = textContent.trim();
+
+        // Truncate to reasonable length (50 chars) if needed
+        if (textContent.length > 50) {
+          textContent = textContent.substring(0, 47) + "...";
+        }
+
         elementsWithPadding.push({
           selector,
           tagName: element.tagName.toLowerCase(),
+          textContent: textContent || undefined, // Only include if non-empty
           bounds: {
             x: rect.left + globalThis.scrollX,
             y: rect.top + globalThis.scrollY,
@@ -259,26 +269,34 @@ export class PaddingDetector implements Detector {
       return null;
     }
 
-    // Create element location
+    // Create element location with text content if available
     const location: ElementLocation = {
       selector: element.selector,
       x: element.bounds.x,
       y: element.bounds.y,
       width: element.bounds.width,
       height: element.bounds.height,
+      ...(element.textContent ? { textContent: element.textContent } : {}),
     };
 
     // Determine severity
-    const severity = determineSeverity(element, insufficientSides, requiredPadding);
+    const severity = determineSeverity(element, insufficientSides);
 
     // Create sides description
     const sidesText = insufficientSides.join(", ");
+
+    // Create message with text content if available
+    let message = `Element ${element.selector}`;
+    if (element.textContent) {
+      message += ` ("${element.textContent}")`;
+    }
+    message += ` has insufficient padding on ${sidesText}`;
 
     // Create an issue
     return {
       type: "padding",
       severity,
-      message: `Element ${element.selector} has insufficient padding on ${sidesText}`,
+      message,
       elements: [location],
       sides: insufficientSides,
       computedPadding: element.padding,

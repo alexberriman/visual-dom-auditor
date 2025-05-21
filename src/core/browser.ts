@@ -1,5 +1,5 @@
 import { chromium, type Page, type Browser } from "playwright-core";
-import { Result, Ok, Err } from "ts-results";
+import { Ok, Err, type Result } from "../types/ts-results";
 import type { Config } from "../types/config";
 
 type BrowserError = {

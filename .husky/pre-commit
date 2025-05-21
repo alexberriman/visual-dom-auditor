@@ -225,11 +225,11 @@ fi
 
 # Run tests to ensure all tests pass before committing
 echo "🧪 Running tests..."
-bun test
+bun run test
 if [ $? -ne 0 ]; then
   echo "⛔ ERROR: Tests failed."
   echo "❌ Please fix all failing tests before committing."
-  echo "✅ Run 'bun test' to see the failing tests and fix them."
+  echo "✅ Run 'bun run test' to see the failing tests and fix them."
   echo ""
   echo "‼️ STRICT POLICY ‼️"
   echo "Under NO circumstances should you attempt to:"

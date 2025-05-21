@@ -1,6 +1,6 @@
 import { type Page } from "playwright-core";
 import { type Detector } from "../analyzer";
-import { Result, Ok, Err } from "ts-results";
+import { Ok, Err, type Result } from "../../types/ts-results";
 import type { ElementLocation, SpacingIssue } from "../../types/issues";
 
 type SpacingError = {

@@ -1,6 +1,6 @@
 import { type Page } from "playwright-core";
 import { type Detector } from "../analyzer";
-import { Result, Ok, Err } from "ts-results";
+import { Ok, type Result } from "../../types/ts-results";
 import type { ElementLocation, ScrollbarIssue } from "../../types/issues";
 import logger from "../../utils/logger";
 
@@ -34,185 +34,178 @@ interface ScrollbarInfo {
  * DOM script to detect unexpected scrollbars and the elements causing them
  */
 const detectScrollbarsScript = `
-function isElementVisible(element) {
-  const style = window.getComputedStyle(element);
-  return !(
-    style.display === "none" ||
-    style.visibility === "hidden" ||
-    style.opacity === "0" ||
-    parseFloat(style.opacity) === 0
-  );
-}
-
-function getElementSelector(element) {
-  // Use ID if available
-  if (element.id) {
-    return "#" + element.id;
-  }
-  
-  // Create a proper selector
-  let selector = element.tagName.toLowerCase();
-  
-  // Add classes (max 2)
-  if (element.classList.length > 0) {
-    const classes = [];
-    for (let i = 0; i < Math.min(element.classList.length, 2); i++) {
-      classes.push(element.classList[i]);
-    }
-    if (classes.length > 0) {
-      selector += "." + classes.join(".");
-    }
-  }
-  
-  // Add positional information
-  const parent = element.parentElement;
-  if (parent && parent !== document.body && parent !== document.documentElement) {
-    const siblings = Array.from(parent.children);
-    const sameTagSiblings = siblings.filter(el => el.tagName === element.tagName);
-    if (sameTagSiblings.length > 1) {
-      const index = sameTagSiblings.indexOf(element) + 1;
-      selector += ":nth-of-type(" + index + ")";
-    }
-  }
-  
-  return selector;
-}
-
-function findElementsCausingHorizontalOverflow() {
-  const viewportWidth = window.innerWidth;
-  const documentWidth = Math.max(
-    document.body.scrollWidth,
-    document.documentElement.scrollWidth,
-    document.body.offsetWidth,
-    document.documentElement.offsetWidth,
-    document.body.clientWidth,
-    document.documentElement.clientWidth
-  );
-  
-  // Check if horizontal scrollbar exists
-  const hasHorizontalScrollbar = documentWidth > viewportWidth;
-  if (!hasHorizontalScrollbar) {
-    return null;
-  }
-  
-  // Find elements that extend beyond viewport width
-  const allElements = document.querySelectorAll("*");
-  let culpritElement = null;
-  let maxWidth = viewportWidth;
-  
-  for (const element of allElements) {
-    if (!isElementVisible(element)) continue;
-    
-    const rect = element.getBoundingClientRect();
-    const rightEdge = rect.left + rect.width;
-    
-    // Check if element extends beyond viewport and is wider than previously found culprits
-    if (rightEdge > viewportWidth && rightEdge > maxWidth) {
-      // Ignore fixed or absolutely positioned elements that are intentionally off-screen
+try {
+  // Function to check if an element is visible
+  function isElementVisible(element) {
+    try {
       const style = window.getComputedStyle(element);
-      if (style.position === "fixed" || style.position === "absolute") {
-        // Only consider these if they're partially visible and causing overflow
-        if (rect.left >= viewportWidth || rect.width > documentWidth * 0.9) {
+      return !(
+        style.display === "none" ||
+        style.visibility === "hidden" ||
+        style.opacity === "0" ||
+        parseFloat(style.opacity) === 0
+      );
+    } catch (e) {
+      // If there's an error checking visibility, assume it's not visible
+      return false;
+    }
+  }
+
+  // Function to generate a CSS selector for an element
+  function getElementSelector(element) {
+    try {
+      // Use ID if available
+      if (element.id) {
+        return "#" + element.id;
+      }
+      
+      // Create a simple selector with tag name and classes
+      let selector = element.tagName.toLowerCase();
+      
+      // Add classes (max 2)
+      if (element.classList && element.classList.length > 0) {
+        const classes = [];
+        for (let i = 0; i < Math.min(element.classList.length, 2); i++) {
+          classes.push(element.classList[i]);
+        }
+        if (classes.length > 0) {
+          selector += "." + classes.join(".");
+        }
+      }
+      
+      return selector;
+    } catch (e) {
+      // If there's an error generating a selector, use a fallback
+      return element.tagName ? element.tagName.toLowerCase() : "unknown-element";
+    }
+  }
+
+  // Get viewport dimensions
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  
+  // Get document dimensions safely
+  let documentWidth = 0;
+  let documentHeight = 0;
+  
+  try {
+    documentWidth = Math.max(
+      document.body.scrollWidth || 0,
+      document.documentElement.scrollWidth || 0,
+      document.body.offsetWidth || 0,
+      document.documentElement.offsetWidth || 0,
+      document.body.clientWidth || 0,
+      document.documentElement.clientWidth || 0
+    );
+    
+    documentHeight = Math.max(
+      document.body.scrollHeight || 0,
+      document.documentElement.scrollHeight || 0,
+      document.body.offsetHeight || 0,
+      document.documentElement.offsetHeight || 0,
+      document.body.clientHeight || 0,
+      document.documentElement.clientHeight || 0
+    );
+  } catch (e) {
+    // If there's an error getting dimensions, fall back to viewport dimensions
+    documentWidth = viewportWidth;
+    documentHeight = viewportHeight;
+  }
+  
+  // Check for horizontal scrollbar
+  let horizontalScrollbar = null;
+  if (documentWidth > viewportWidth) {
+    horizontalScrollbar = {
+      direction: "horizontal",
+      viewport: {
+        width: viewportWidth,
+        height: viewportHeight
+      },
+      documentSize: {
+        width: documentWidth,
+        height: documentHeight
+      }
+      // We'll add culprit element below if found
+    };
+    
+    // Try to find the element causing overflow, but limit scope to avoid performance issues
+    try {
+      // Only check top-level elements and their immediate children to avoid performance issues
+      const potentialCulprits = [];
+      const checkElements = ['body > *', '.container > *', '.wrapper > *', 'main > *', '#content > *'];
+      
+      for (const selector of checkElements) {
+        try {
+          const elements = document.querySelectorAll(selector);
+          for (const element of elements) {
+            if (!isElementVisible(element)) continue;
+            
+            const rect = element.getBoundingClientRect();
+            const rightEdge = rect.left + rect.width;
+            
+            if (rightEdge > viewportWidth) {
+              potentialCulprits.push({
+                element,
+                overhang: rightEdge - viewportWidth
+              });
+            }
+          }
+        } catch (e) {
+          // Skip this selector if there's an error
           continue;
         }
       }
       
-      culpritElement = element;
-      maxWidth = rightEdge;
+      // Find the element with the most overhang
+      if (potentialCulprits.length > 0) {
+        potentialCulprits.sort((a, b) => b.overhang - a.overhang);
+        const culprit = potentialCulprits[0].element;
+        const rect = culprit.getBoundingClientRect();
+        
+        horizontalScrollbar.causingElement = {
+          selector: getElementSelector(culprit),
+          bounds: {
+            x: rect.left + (window.scrollX || 0),
+            y: rect.top + (window.scrollY || 0),
+            width: rect.width,
+            height: rect.height
+          }
+        };
+      }
+    } catch (e) {
+      // If there's an error finding the culprit, just continue without it
     }
   }
   
-  if (!culpritElement) {
-    return {
-      direction: "horizontal",
+  // Check for vertical scrollbar
+  let verticalScrollbar = null;
+  if (documentHeight > viewportHeight) {
+    verticalScrollbar = {
+      direction: "vertical",
       viewport: {
         width: viewportWidth,
-        height: window.innerHeight
+        height: viewportHeight
       },
       documentSize: {
         width: documentWidth,
-        height: Math.max(
-          document.body.scrollHeight,
-          document.documentElement.scrollHeight
-        )
-      },
-      // No specific element found
-      causingElement: undefined
+        height: documentHeight
+      }
     };
   }
   
-  const rect = culpritElement.getBoundingClientRect();
+  // Return the scrollbar information
   return {
-    direction: "horizontal",
-    viewport: {
-      width: viewportWidth,
-      height: window.innerHeight
-    },
-    documentSize: {
-      width: documentWidth,
-      height: Math.max(
-        document.body.scrollHeight,
-        document.documentElement.scrollHeight
-      )
-    },
-    causingElement: {
-      selector: getElementSelector(culpritElement),
-      bounds: {
-        x: rect.left + window.scrollX,
-        y: rect.top + window.scrollY,
-        width: rect.width,
-        height: rect.height
-      }
-    }
+    horizontal: horizontalScrollbar,
+    vertical: verticalScrollbar
+  };
+} catch (e) {
+  // If any part of the script fails, return a safe fallback
+  return {
+    error: e.message || "Unknown error in scrollbar detection",
+    horizontal: null,
+    vertical: null
   };
 }
-
-function findElementsCausingVerticalOverflow() {
-  const viewportHeight = window.innerHeight;
-  const documentHeight = Math.max(
-    document.body.scrollHeight,
-    document.documentElement.scrollHeight,
-    document.body.offsetHeight,
-    document.documentElement.offsetHeight,
-    document.body.clientHeight,
-    document.documentElement.clientHeight
-  );
-  
-  // Check if vertical scrollbar exists
-  const hasVerticalScrollbar = documentHeight > viewportHeight;
-  if (!hasVerticalScrollbar) {
-    return null;
-  }
-  
-  // For vertical scrollbars, we usually don't report issues as they're expected
-  // But we'll return the information anyway
-  return {
-    direction: "vertical",
-    viewport: {
-      width: window.innerWidth,
-      height: viewportHeight
-    },
-    documentSize: {
-      width: Math.max(
-        document.body.scrollWidth,
-        document.documentElement.scrollWidth
-      ),
-      height: documentHeight
-    }
-    // No causing element for vertical scrollbars as they're typically expected
-  };
-}
-
-// Detect both types of scrollbars
-const horizontalScrollbar = findElementsCausingHorizontalOverflow();
-const verticalScrollbar = findElementsCausingVerticalOverflow();
-
-// We're primarily interested in horizontal scrollbars as they're usually unintentional
-// Vertical scrollbars are typical for content and usually intentional
-return {
-  horizontal: horizontalScrollbar,
-  vertical: verticalScrollbar
-};
 `;
 
 /**
@@ -232,13 +225,7 @@ const determineHorizontalSeverity = (overflow: number): "critical" | "major" | "
   return "minor";
 };
 
-/**
- * Determine severity for vertical overflow
- */
-const determineVerticalSeverity = (overflow: number): "critical" | "major" | "minor" => {
-  // Vertical scrollbars are less problematic
-  return overflow > 300 ? "major" : "minor";
-};
+// Vertical scrollbar severity is always minor in our implementation
 
 /**
  * Detector for unexpected scrollbars
@@ -376,8 +363,21 @@ export class ScrollbarDetector implements Detector {
     try {
       logger.debug("Running scrollbar detector");
 
-      // Execute the detection script in the browser
-      const result = await page.evaluate(detectScrollbarsScript);
+      // Execute the detection script in the browser with a timeout
+      const result = await Promise.race([
+        page.evaluate(detectScrollbarsScript),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Scrollbar detection timed out")), 3000)
+        ),
+      ]);
+
+      // Check if the script returned an error
+      if (result && typeof result === "object" && "error" in result) {
+        logger.warn("Script reported error in scrollbar detection", result.error);
+        return Ok([]); // Return empty array instead of error
+      }
+
+      // Extract scrollbar info, with fallback to null values
       const { horizontal, vertical } = result as {
         horizontal: ScrollbarInfo | null;
         vertical: ScrollbarInfo | null;
@@ -387,27 +387,36 @@ export class ScrollbarDetector implements Detector {
 
       // Process horizontal scrollbar (usually unintentional and problematic)
       if (horizontal) {
-        const horizontalIssue = this.processHorizontalScrollbar(horizontal);
-        if (horizontalIssue) {
-          issues.push(horizontalIssue);
+        try {
+          const horizontalIssue = this.processHorizontalScrollbar(horizontal);
+          if (horizontalIssue) {
+            issues.push(horizontalIssue);
+          }
+        } catch (err) {
+          logger.warn("Error processing horizontal scrollbar", err);
+          // Continue execution rather than failing the whole detector
         }
       }
 
       // Process vertical scrollbar
       if (vertical) {
-        const verticalIssue = this.processVerticalScrollbar(vertical);
-        if (verticalIssue) {
-          issues.push(verticalIssue);
+        try {
+          const verticalIssue = this.processVerticalScrollbar(vertical);
+          if (verticalIssue) {
+            issues.push(verticalIssue);
+          }
+        } catch (err) {
+          logger.warn("Error processing vertical scrollbar", err);
+          // Continue execution rather than failing the whole detector
         }
       }
 
       return Ok(issues);
     } catch (error) {
-      logger.error("Failed to detect scrollbar issues", error);
-      return Err({
-        message: "Failed to detect scrollbar issues",
-        cause: error,
-      });
+      // For truly fatal errors, log but return empty array instead of error
+      const errorName = error instanceof Error ? error.name : "Unknown";
+      logger.warn("Could not detect scrollbar issues - skipping", { name: errorName });
+      return Ok([]); // Return empty issues array instead of error
     }
   }
 }

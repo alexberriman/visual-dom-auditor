@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import type { Config } from "../types/config";
-import { Result, Ok, Err } from "ts-results";
+import { Ok, Err, type Result } from "../types/ts-results";
 
 const VIEWPORT_PRESETS = {
   desktop: "1920x1080",

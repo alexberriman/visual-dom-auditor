@@ -36,19 +36,35 @@ describe("SpacingDetector", () => {
     }
   });
 
+  // Constants for test cases
+  const TEST_COORDS = {
+    x: 10,
+    y: 10,
+    width: 100,
+    height: 40,
+  };
+  const PARENT_SELECTOR = "nav.navbar";
+  const NAV_ITEM_FIRST = "a.nav-item.first";
+  const NAV_ITEM_SECOND = "a.nav-item.second";
+
   it("should detect insufficient horizontal spacing between inline elements", async () => {
     // Setup
     mockPage.evaluate = vi.fn().mockResolvedValue([
       {
-        selector: "a.nav-item.first",
-        bounds: { x: 10, y: 10, width: 100, height: 40 },
-        parent: "nav.navbar",
+        selector: NAV_ITEM_FIRST,
+        bounds: {
+          x: TEST_COORDS.x,
+          y: TEST_COORDS.y,
+          width: TEST_COORDS.width,
+          height: TEST_COORDS.height,
+        },
+        parent: PARENT_SELECTOR,
         isInline: true,
       },
       {
-        selector: "a.nav-item.second",
-        bounds: { x: 102, y: 10, width: 100, height: 40 },
-        parent: "nav.navbar",
+        selector: NAV_ITEM_SECOND,
+        bounds: { x: 102, y: TEST_COORDS.y, width: TEST_COORDS.width, height: TEST_COORDS.height },
+        parent: PARENT_SELECTOR,
         isInline: true,
       },
     ]);
@@ -67,19 +83,37 @@ describe("SpacingDetector", () => {
     }
   });
 
+  // Constants for block elements test
+  const BLOCK_ELEMENT = {
+    x: 10,
+    width: 300,
+    height: 200,
+  };
+  const BLOCK_PARENT = "div.container";
+
   it("should detect insufficient vertical spacing between block elements", async () => {
     // Setup
     mockPage.evaluate = vi.fn().mockResolvedValue([
       {
         selector: "div.card.first",
-        bounds: { x: 10, y: 10, width: 300, height: 200 },
-        parent: "div.container",
+        bounds: {
+          x: BLOCK_ELEMENT.x,
+          y: 10,
+          width: BLOCK_ELEMENT.width,
+          height: BLOCK_ELEMENT.height,
+        },
+        parent: BLOCK_PARENT,
         isInline: false,
       },
       {
         selector: "div.card.second",
-        bounds: { x: 10, y: 215, width: 300, height: 200 },
-        parent: "div.container",
+        bounds: {
+          x: BLOCK_ELEMENT.x,
+          y: 215,
+          width: BLOCK_ELEMENT.width,
+          height: BLOCK_ELEMENT.height,
+        },
+        parent: BLOCK_PARENT,
         isInline: false,
       },
     ]);
@@ -103,14 +137,24 @@ describe("SpacingDetector", () => {
     mockPage.evaluate = vi.fn().mockResolvedValue([
       {
         selector: "div.card.first",
-        bounds: { x: 10, y: 10, width: 300, height: 200 },
-        parent: "div.container",
+        bounds: {
+          x: BLOCK_ELEMENT.x,
+          y: 10,
+          width: BLOCK_ELEMENT.width,
+          height: BLOCK_ELEMENT.height,
+        },
+        parent: BLOCK_PARENT,
         isInline: false,
       },
       {
         selector: "div.card.second",
-        bounds: { x: 10, y: 230, width: 300, height: 200 },
-        parent: "div.container",
+        bounds: {
+          x: BLOCK_ELEMENT.x,
+          y: 230,
+          width: BLOCK_ELEMENT.width,
+          height: BLOCK_ELEMENT.height,
+        },
+        parent: BLOCK_PARENT,
         isInline: false,
       },
     ]);
@@ -125,19 +169,31 @@ describe("SpacingDetector", () => {
     }
   });
 
+  // Constants for separator test
+  const SEPARATOR_SELECTOR = "span.separator";
+  const SEPARATOR_SIZE = {
+    width: 20,
+    height: 20,
+  };
+
   it("should ignore elements in the ignored list", async () => {
     // Setup
     mockPage.evaluate = vi.fn().mockResolvedValue([
       {
-        selector: "span.separator",
-        bounds: { x: 10, y: 10, width: 20, height: 20 },
-        parent: "nav.navbar",
+        selector: SEPARATOR_SELECTOR,
+        bounds: {
+          x: TEST_COORDS.x,
+          y: TEST_COORDS.y,
+          width: SEPARATOR_SIZE.width,
+          height: SEPARATOR_SIZE.height,
+        },
+        parent: PARENT_SELECTOR,
         isInline: true,
       },
       {
         selector: "a.nav-item",
-        bounds: { x: 12, y: 10, width: 100, height: 40 },
-        parent: "nav.navbar",
+        bounds: { x: 12, y: TEST_COORDS.y, width: TEST_COORDS.width, height: TEST_COORDS.height }, // position offset slightly
+        parent: PARENT_SELECTOR,
         isInline: true,
       },
     ]);
@@ -152,19 +208,27 @@ describe("SpacingDetector", () => {
     }
   });
 
+  // Constants for button test
+  const BTN_GROUP = "div.btn-group";
+
   it("should mark zero spacing as critical severity", async () => {
     // Setup
     mockPage.evaluate = vi.fn().mockResolvedValue([
       {
         selector: "button.btn.first",
-        bounds: { x: 10, y: 10, width: 100, height: 40 },
-        parent: "div.btn-group",
+        bounds: {
+          x: TEST_COORDS.x,
+          y: TEST_COORDS.y,
+          width: TEST_COORDS.width,
+          height: TEST_COORDS.height,
+        },
+        parent: BTN_GROUP,
         isInline: true,
       },
       {
         selector: "button.btn.second",
-        bounds: { x: 110, y: 10, width: 100, height: 40 },
-        parent: "div.btn-group",
+        bounds: { x: 110, y: TEST_COORDS.y, width: TEST_COORDS.width, height: TEST_COORDS.height },
+        parent: BTN_GROUP,
         isInline: true,
       },
     ]);
@@ -180,33 +244,44 @@ describe("SpacingDetector", () => {
     }
   });
 
+  // Constants for grouped elements test
+  const LIST_PARENT = "ul.list";
+  const LIST_HEIGHT = 30;
+  const LIST_ITEM_FIRST = "li.item.first";
+  const LIST_ITEM_SECOND = "li.item.second";
+
   it("should group elements by parent container", async () => {
     // Setup - two different parent containers with insufficient spacing
     mockPage.evaluate = vi.fn().mockResolvedValue([
       // First container
       {
-        selector: "a.nav-item.first",
-        bounds: { x: 10, y: 10, width: 100, height: 40 },
-        parent: "nav.navbar",
+        selector: NAV_ITEM_FIRST,
+        bounds: {
+          x: TEST_COORDS.x,
+          y: TEST_COORDS.y,
+          width: TEST_COORDS.width,
+          height: TEST_COORDS.height,
+        },
+        parent: PARENT_SELECTOR,
         isInline: true,
       },
       {
-        selector: "a.nav-item.second",
-        bounds: { x: 115, y: 10, width: 100, height: 40 },
-        parent: "nav.navbar",
+        selector: NAV_ITEM_SECOND,
+        bounds: { x: 115, y: TEST_COORDS.y, width: TEST_COORDS.width, height: TEST_COORDS.height },
+        parent: PARENT_SELECTOR,
         isInline: true,
       },
       // Second container
       {
-        selector: "li.item.first",
-        bounds: { x: 10, y: 100, width: 100, height: 30 },
-        parent: "ul.list",
+        selector: LIST_ITEM_FIRST,
+        bounds: { x: TEST_COORDS.x, y: 100, width: TEST_COORDS.width, height: LIST_HEIGHT },
+        parent: LIST_PARENT,
         isInline: true,
       },
       {
-        selector: "li.item.second",
-        bounds: { x: 112, y: 100, width: 100, height: 30 },
-        parent: "ul.list",
+        selector: LIST_ITEM_SECOND,
+        bounds: { x: 112, y: 100, width: TEST_COORDS.width, height: LIST_HEIGHT },
+        parent: LIST_PARENT,
         isInline: true,
       },
     ]);
@@ -237,25 +312,42 @@ describe("SpacingDetector", () => {
     }
   });
 
+  // Constants for custom thresholds test
+  const CUSTOM_THRESHOLDS = {
+    horizontal: 16,
+    vertical: 24,
+  };
+  const SECOND_ELEMENT_X = 124; // Position for second element with 14px gap
+
   it("should support custom spacing thresholds", async () => {
     // Setup with custom minimum spacing
     const customDetector = new SpacingDetector({
-      minimumHorizontalSpacingPx: 16,
-      minimumVerticalSpacingPx: 24,
+      minimumHorizontalSpacingPx: CUSTOM_THRESHOLDS.horizontal,
+      minimumVerticalSpacingPx: CUSTOM_THRESHOLDS.vertical,
     });
 
     mockPage.evaluate = vi.fn().mockResolvedValue([
       // Horizontal spacing that would be acceptable with defaults (12px) but not with custom (16px)
       {
-        selector: "a.nav-item.first",
-        bounds: { x: 10, y: 10, width: 100, height: 40 },
-        parent: "nav.navbar",
+        selector: NAV_ITEM_FIRST,
+        bounds: {
+          x: TEST_COORDS.x,
+          y: TEST_COORDS.y,
+          width: TEST_COORDS.width,
+          height: TEST_COORDS.height,
+        },
+        parent: PARENT_SELECTOR,
         isInline: true,
       },
       {
-        selector: "a.nav-item.second",
-        bounds: { x: 124, y: 10, width: 100, height: 40 },
-        parent: "nav.navbar",
+        selector: NAV_ITEM_SECOND,
+        bounds: {
+          x: SECOND_ELEMENT_X,
+          y: TEST_COORDS.y,
+          width: TEST_COORDS.width,
+          height: TEST_COORDS.height,
+        },
+        parent: PARENT_SELECTOR,
         isInline: true,
       },
     ]);

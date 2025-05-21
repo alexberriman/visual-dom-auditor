@@ -1,5 +1,5 @@
 import { type Page } from "playwright-core";
-import { Result, Ok, Err } from "ts-results";
+import { Ok, Err, type Result } from "../types/ts-results";
 import type { AuditResult, Issue, IssueType } from "../types/issues";
 import type { Config } from "../types/config";
 
@@ -20,7 +20,7 @@ export interface Detector {
    * @param page The Playwright page to analyze
    * @returns A result containing found issues or an error
    */
-  detect: (page: Page) => Promise<Result<Issue[], AnalyzerError>>;
+  detect: (_page: Page) => Promise<Result<Issue[], AnalyzerError>>;
 }
 
 /**

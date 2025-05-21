@@ -30,17 +30,31 @@ describe("ContainerOverflowDetector", () => {
     }
   });
 
+  // Test constants for all tests
+  const CONTAINER_SELECTOR = "div.container";
+  const CHILD_SELECTOR = "div.child";
+  const CONTAINER_X = 100;
+  const CONTAINER_Y = 100;
+  const CONTAINER_WIDTH = 200;
+  const CONTAINER_HEIGHT = 200;
+  const IGNORE_SELECTOR = "div.ignore-me";
+
   it("should detect a child that overflows its container", async () => {
     // Mock container-child pairs with an overflow case
     const mockPairs = [
       {
         parent: {
-          selector: "div.container",
-          bounds: { x: 100, y: 100, width: 200, height: 200 },
+          selector: CONTAINER_SELECTOR,
+          bounds: {
+            x: CONTAINER_X,
+            y: CONTAINER_Y,
+            width: CONTAINER_WIDTH,
+            height: CONTAINER_HEIGHT,
+          },
         },
         child: {
-          selector: "div.child",
-          bounds: { x: 100, y: 100, width: 250, height: 200 }, // Overflows right by 50px
+          selector: CHILD_SELECTOR,
+          bounds: { x: CONTAINER_X, y: CONTAINER_Y, width: 250, height: CONTAINER_HEIGHT }, // Overflows right by 50px
         },
       },
     ];
@@ -67,11 +81,11 @@ describe("ContainerOverflowDetector", () => {
     const mockPairs = [
       {
         parent: {
-          selector: "div.container",
-          bounds: { x: 100, y: 100, width: 200, height: 100 },
+          selector: CONTAINER_SELECTOR,
+          bounds: { x: CONTAINER_X, y: CONTAINER_Y, width: CONTAINER_WIDTH, height: 100 },
         },
         child: {
-          selector: "div.child",
+          selector: CHILD_SELECTOR,
           bounds: { x: 80, y: 90, width: 240, height: 130 }, // Overflows left, right, and bottom
         },
       },
@@ -100,15 +114,21 @@ describe("ContainerOverflowDetector", () => {
       ignoredSelectors: [".ignore-me"],
     });
 
+    // Use the same container position constants from previous test
     // Mock container-child pairs with an element that should be ignored
     const mockPairs = [
       {
         parent: {
-          selector: "div.container",
-          bounds: { x: 100, y: 100, width: 200, height: 200 },
+          selector: CONTAINER_SELECTOR,
+          bounds: {
+            x: CONTAINER_X,
+            y: CONTAINER_Y,
+            width: CONTAINER_WIDTH,
+            height: CONTAINER_HEIGHT,
+          },
         },
         child: {
-          selector: "div.ignore-me",
+          selector: IGNORE_SELECTOR,
           bounds: { x: 50, y: 50, width: 300, height: 300 }, // Significant overflow
         },
       },
@@ -153,12 +173,17 @@ describe("ContainerOverflowDetector", () => {
     const mockPairs = [
       {
         parent: {
-          selector: "div.container",
-          bounds: { x: 100, y: 100, width: 200, height: 200 },
+          selector: CONTAINER_SELECTOR,
+          bounds: {
+            x: CONTAINER_X,
+            y: CONTAINER_Y,
+            width: CONTAINER_WIDTH,
+            height: CONTAINER_HEIGHT,
+          },
         },
         child: {
-          selector: "div.child",
-          bounds: { x: 100, y: 100, width: 220, height: 200 }, // Overflows right by 20px
+          selector: CHILD_SELECTOR,
+          bounds: { x: CONTAINER_X, y: CONTAINER_Y, width: 220, height: CONTAINER_HEIGHT }, // Overflows right by 20px
         },
       },
     ];

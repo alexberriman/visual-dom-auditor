@@ -20,21 +20,25 @@ describe("CenteringDetector", () => {
     const originalFindMethod = CenteringDetector.prototype["findPotentiallyCenteredElements"];
     const originalCheckMethod = CenteringDetector.prototype["checkElementCentering"];
 
+    // Constants for test
+    const TEST_SELECTOR = "[style*='margin: 0 auto']";
+    const TEST_AXIS = "horizontal";
+
     // Mock findPotentiallyCenteredElements to return a known element
     CenteringDetector.prototype["findPotentiallyCenteredElements"] = vi
       .fn()
-      .mockResolvedValue([{ selector: "[style*='margin: 0 auto']", axis: "horizontal" }]);
+      .mockResolvedValue([{ selector: TEST_SELECTOR, axis: TEST_AXIS }]);
 
     // Mock checkElementCentering to return a simulated issue
     CenteringDetector.prototype["checkElementCentering"] = vi.fn().mockResolvedValue({
       type: "centering",
       severity: "major",
-      message: "Element appears to be intended for horizontal centering but is misaligned by 5px",
+      message: `Element appears to be intended for ${TEST_AXIS} centering but is misaligned by 5px`,
       elements: [
-        { selector: "[style*='margin: 0 auto']", x: 105, y: 50, width: 200, height: 100 },
-        { selector: "[style*='margin: 0 auto'] > parent", x: 0, y: 0, width: 400, height: 200 },
+        { selector: TEST_SELECTOR, x: 105, y: 50, width: 200, height: 100 },
+        { selector: `${TEST_SELECTOR} > parent`, x: 0, y: 0, width: 400, height: 200 },
       ],
-      axis: "horizontal",
+      axis: TEST_AXIS,
       offset: { x: 5 },
     });
 

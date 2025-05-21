@@ -1,6 +1,6 @@
 import { type Page } from "playwright-core";
 import { type Detector } from "../analyzer";
-import { Result, Ok, Err } from "ts-results";
+import { Ok, Err, type Result } from "../../types/ts-results";
 import type { ElementLocation, LayoutIssue } from "../../types/issues";
 
 type FlexGridError = {
@@ -65,7 +65,7 @@ interface LayoutElement {
 }
 
 // Check if element is hidden
-function isHidden(element: Element, styles: CSSStyleDeclaration) {
+function isHidden(element: Element, styles: CSSStyleDeclaration): boolean {
   return (
     styles.display === "none" ||
     styles.visibility === "hidden" ||
@@ -75,7 +75,7 @@ function isHidden(element: Element, styles: CSSStyleDeclaration) {
 }
 
 // Generate a selector for an element
-function generateSelector(element: Element) {
+function generateSelector(element: Element): string {
   if (element.id) {
     return `#${element.id}`;
   }
@@ -91,7 +91,7 @@ function generateSelector(element: Element) {
 }
 
 // Create bounds object from rect
-function createBounds(rect: DOMRect) {
+function createBounds(rect: DOMRect): { x: number; y: number; width: number; height: number } {
   return {
     x: rect.left + window.scrollX,
     y: rect.top + window.scrollY,
@@ -101,7 +101,10 @@ function createBounds(rect: DOMRect) {
 }
 
 // Create style object for a child element
-function createChildStyle(styles: CSSStyleDeclaration, layoutType: "flex" | "grid") {
+function createChildStyle(
+  styles: CSSStyleDeclaration,
+  layoutType: "flex" | "grid"
+): Record<string, string | undefined> {
   return {
     flexGrow: layoutType === "flex" ? styles.flexGrow : undefined,
     flexShrink: layoutType === "flex" ? styles.flexShrink : undefined,
@@ -119,7 +122,10 @@ function createChildStyle(styles: CSSStyleDeclaration, layoutType: "flex" | "gri
 }
 
 // Create style object for a container element
-function createContainerStyle(styles: CSSStyleDeclaration, layoutType: "flex" | "grid") {
+function createContainerStyle(
+  styles: CSSStyleDeclaration,
+  layoutType: "flex" | "grid"
+): LayoutElement["style"] {
   return {
     display: styles.display,
     direction: styles.direction,
@@ -160,7 +166,7 @@ const getLayoutElements = async (page: Page): Promise<Result<LayoutElement[], Fl
       );
 
       // Check if element should be skipped based on size
-      function isTooSmall(rect: DOMRect) {
+      function isTooSmall(rect: DOMRect): boolean {
         return (
           rect.width < MIN_ELEMENT_SIZE ||
           rect.height < MIN_ELEMENT_SIZE ||
@@ -170,7 +176,14 @@ const getLayoutElements = async (page: Page): Promise<Result<LayoutElement[], Fl
       }
 
       // Process a child element
-      function processChild(child: Element, layoutType: "flex" | "grid") {
+      function processChild(
+        child: Element,
+        layoutType: "flex" | "grid"
+      ): {
+        selector: string;
+        bounds: { x: number; y: number; width: number; height: number };
+        style: Record<string, string | undefined>;
+      } | null {
         const childRect = child.getBoundingClientRect();
 
         // Skip hidden or zero-sized children
@@ -189,7 +202,14 @@ const getLayoutElements = async (page: Page): Promise<Result<LayoutElement[], Fl
       }
 
       // Process children of a container
-      function processChildren(element: Element, layoutType: "flex" | "grid") {
+      function processChildren(
+        element: Element,
+        layoutType: "flex" | "grid"
+      ): Array<{
+        selector: string;
+        bounds: { x: number; y: number; width: number; height: number };
+        style: Record<string, string | undefined>;
+      }> {
         const children = [];
 
         // Convert HTMLCollection to array before iterating
@@ -206,7 +226,7 @@ const getLayoutElements = async (page: Page): Promise<Result<LayoutElement[], Fl
       }
 
       // Process a container element
-      function processContainer(element: Element, layoutType: "flex" | "grid") {
+      function processContainer(element: Element, layoutType: "flex" | "grid"): void {
         const rect = element.getBoundingClientRect();
 
         // Skip very small elements

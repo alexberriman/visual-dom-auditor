@@ -1,6 +1,6 @@
 import { type Page } from "playwright-core";
 import { type Detector } from "../analyzer";
-import { Result, Ok, Err } from "ts-results";
+import { Ok, Err, type Result } from "../../types/ts-results";
 import type { ElementLocation, ContainerOverflowIssue } from "../../types/issues";
 
 type ContainerOverflowError = {
@@ -322,7 +322,7 @@ export class ContainerOverflowDetector implements Detector {
 
         // Check if any overflow exceeds the minimum threshold
         const hasSignificantOverflow = Object.values(overflow).some(
-          (value) => value != null && value >= this.minOverflowPx
+          (value) => value !== null && value !== undefined && value >= this.minOverflowPx
         );
 
         if (!hasSignificantOverflow) {

@@ -7,6 +7,7 @@ export type ElementLocation = {
   readonly y: number;
   readonly width: number;
   readonly height: number;
+  readonly textContent?: string; // Optional text content of the element
 };
 
 /**

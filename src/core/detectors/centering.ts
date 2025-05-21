@@ -1,5 +1,5 @@
 import { type Page } from "playwright-core";
-import { Result, Ok, Err } from "ts-results";
+import { Ok, Err, type Result } from "../../types/ts-results";
 import type { Issue, CenteringIssue, IssueSeverity, ElementLocation } from "../../types/issues";
 
 // Define axis type
@@ -213,7 +213,12 @@ export class CenteringDetector {
       const severity = this.determineSeverity(maxOffset);
 
       // Get descriptive message based on the axis and offset
-      const message = this.getIssueMessage(element.axis, offsetX, offsetY);
+      let message = this.getIssueMessage(element.axis, offsetX, offsetY);
+
+      // Add text content to message if available
+      if (location.textContent) {
+        message = message.replace("Element", `Element "${location.textContent}"`);
+      }
 
       return {
         type: "centering",
@@ -241,12 +246,23 @@ export class CenteringDetector {
         if (!element) return null;
 
         const rect = element.getBoundingClientRect();
+
+        // Get text content (with trimming and truncation)
+        let textContent = element.textContent || "";
+        textContent = textContent.trim();
+
+        // Truncate to reasonable length (50 chars) if needed
+        if (textContent.length > 50) {
+          textContent = textContent.substring(0, 47) + "...";
+        }
+
         return {
           selector: sel,
           x: rect.left,
           y: rect.top,
           width: rect.width,
           height: rect.height,
+          ...(textContent ? { textContent } : {}),
         };
       }, selector);
     } catch {
@@ -269,12 +285,23 @@ export class CenteringDetector {
 
         const parent = element.parentElement;
         const rect = parent.getBoundingClientRect();
+
+        // Get text content (with trimming and truncation)
+        let textContent = parent.textContent || "";
+        textContent = textContent.trim();
+
+        // Truncate to reasonable length (50 chars) if needed
+        if (textContent.length > 50) {
+          textContent = textContent.substring(0, 47) + "...";
+        }
+
         return {
           selector: sel + " > parent",
           x: rect.left,
           y: rect.top,
           width: rect.width,
           height: rect.height,
+          ...(textContent ? { textContent } : {}),
         };
       }, selector);
     } catch {
@@ -300,13 +327,15 @@ export class CenteringDetector {
     offsetX?: number,
     offsetY?: number
   ): string {
+    let baseMessage = "";
     if (axis === "both") {
-      return `Element appears to be intended for centering but is misaligned by ${offsetX}px horizontally and ${offsetY}px vertically`;
+      baseMessage = `Element appears to be intended for centering but is misaligned by ${offsetX}px horizontally and ${offsetY}px vertically`;
     } else if (axis === "horizontal") {
-      return `Element appears to be intended for horizontal centering but is misaligned by ${offsetX}px`;
+      baseMessage = `Element appears to be intended for horizontal centering but is misaligned by ${offsetX}px`;
     } else {
-      return `Element appears to be intended for vertical centering but is misaligned by ${offsetY}px`;
+      baseMessage = `Element appears to be intended for vertical centering but is misaligned by ${offsetY}px`;
     }
+    return baseMessage;
   }
 }
 

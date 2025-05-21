@@ -3,7 +3,7 @@ import { FlexGridLayoutDetector } from "./flex-grid";
 import type { Page } from "playwright-core";
 
 // Mock Page object
-const createMockPage = () => ({
+const createMockPage = (): { evaluate: ReturnType<typeof vi.fn> } => ({
   evaluate: vi.fn(),
 });
 

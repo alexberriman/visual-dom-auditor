@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { analyzePage, validateResult, type Detector } from "./analyzer";
-import { Ok, Err } from "ts-results";
+import { Ok, Err } from "../types/ts-results";
 import type { Issue, OverlapIssue, AuditResult } from "../types/issues";
 import type { Page } from "playwright-core";
 import type { Config } from "../types/config";
@@ -22,16 +22,25 @@ const createMockDetector = (issues: Issue[] = [], shouldError = false): Detector
   };
 };
 
+// URL constant to avoid duplicate strings
+const TEST_URL = "https://example.com";
+
 // Create a mock config
 const createMockConfig = (): Config => {
   return {
-    url: "https://example.com",
+    url: TEST_URL,
     viewport: {
       width: 1920,
       height: 1080,
     },
     format: "json",
   };
+};
+
+// Constants for mock elements
+const ELEMENT_SIZE = {
+  width: 100,
+  height: 100,
 };
 
 // Create a mock issue
@@ -45,15 +54,15 @@ const createMockIssue = (): OverlapIssue => {
         selector: ".element1",
         x: 0,
         y: 0,
-        width: 100,
-        height: 100,
+        width: ELEMENT_SIZE.width,
+        height: ELEMENT_SIZE.height,
       },
       {
         selector: ".element2",
         x: 50,
         y: 50,
-        width: 100,
-        height: 100,
+        width: ELEMENT_SIZE.width,
+        height: ELEMENT_SIZE.height,
       },
     ],
     overlapArea: {
@@ -149,7 +158,7 @@ describe("validateResult", () => {
   it("should return true for valid results", () => {
     // Arrange
     const validResult = {
-      url: "https://example.com",
+      url: TEST_URL,
       timestamp: new Date().toISOString(),
       viewport: { width: 1920, height: 1080 },
       issues: [],
@@ -180,7 +189,7 @@ describe("validateResult", () => {
   it("should return false for invalid results", () => {
     // Arrange
     const invalidResult = {
-      url: "https://example.com",
+      url: TEST_URL,
       // Missing timestamp
       viewport: { width: 1920, height: 1080 },
       issues: [],

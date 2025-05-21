@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { main } from "./index";
-import { Ok, Err } from "ts-results";
+import { Ok, Err } from "./types/ts-results";
 import type { Browser, Page } from "playwright-core";
 
 // Mock the CLI module

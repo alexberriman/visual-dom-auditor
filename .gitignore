@@ -54,3 +54,11 @@ Thumbs.db
 # Lock files (keep package-lock.json)
 yarn.lock
 pnpm-lock.yaml
+
+# Output JSON files in the root directory
+/*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!vitest.config.ts
+!claude-control.yml

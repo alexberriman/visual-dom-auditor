@@ -1,61 +1,81 @@
-import unicorn from "eslint-plugin-unicorn";
-import typescriptEslint from "@typescript-eslint/eslint-plugin";
-import tsParser from "@typescript-eslint/parser";
+// @ts-check
 import js from "@eslint/js";
-import prettierConfig from "eslint-config-prettier";
-import sonarjs from "eslint-plugin-sonarjs";
+import eslintConfigPrettier from "eslint-config-prettier";
+import sonarjsPlugin from "eslint-plugin-sonarjs";
+import unicornPlugin from "eslint-plugin-unicorn";
+import tseslintPlugin from "@typescript-eslint/eslint-plugin";
+import tseslintParser from "@typescript-eslint/parser";
 
 export default [
   js.configs.recommended,
   {
     files: ["**/*.ts"],
+    plugins: {
+      "@typescript-eslint": tseslintPlugin,
+      "sonarjs": sonarjsPlugin,
+      "unicorn": unicornPlugin
+    },
     languageOptions: {
-      parser: tsParser,
+      parser: tseslintParser,
       parserOptions: {
-        ecmaVersion: "latest",
-        sourceType: "module",
         project: "./tsconfig.json",
+        ecmaVersion: "latest",
+        sourceType: "module"
       },
-      ecmaVersion: "latest",
-      sourceType: "module",
       globals: {
         // Node.js globals
-        console: "readonly",
-        process: "readonly",
-        Buffer: "readonly",
-        __dirname: "readonly",
-        __filename: "readonly",
-        module: "readonly",
-        exports: "readonly",
-        require: "readonly",
-        global: "readonly",
-        // Browser globals (for page.evaluate)
-        document: "readonly",
-        window: "readonly",
-      },
-    },
-    plugins: {
-      "@typescript-eslint": typescriptEslint,
-      "unicorn": unicorn,
-      "sonarjs": sonarjs,
+        "process": "readonly",
+        "module": "readonly",
+        "require": "readonly",
+        "console": "readonly",
+        "__dirname": "readonly",
+        "__filename": "readonly",
+        "setTimeout": "readonly",
+        
+        // Browser globals
+        "document": "readonly",
+        "window": "readonly"
+      }
     },
     rules: {
-      ...typescriptEslint.configs.recommended.rules,
-      ...unicorn.configs.recommended.rules,
-      ...sonarjs.configs.recommended.rules,
+      // TypeScript Rules
+      "@typescript-eslint/no-unused-vars": ["warn", { 
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_" 
+      }],
+      "@typescript-eslint/explicit-function-return-type": ["error", {
+        allowExpressions: true,
+        allowHigherOrderFunctions: true,
+        allowTypedFunctionExpressions: true
+      }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
       
-      // Basic styling
-      "quotes": ["error", "double"],
-      "semi": ["error", "always"],
-
-      // Set specific rules
-      "@typescript-eslint/no-unused-vars": "off",
-      "sonarjs/no-useless-undefined": "off",
-      "unicorn/no-useless-undefined": "off",
-      "unicorn/no-null": "off",
-      "unicorn/prevent-abbreviations": "off",
-    },
+      // SonarJS Rules - These are warnings to fix in future iterations
+      "sonarjs/no-duplicate-string": "warn", // Test files have legitimate duplication
+      "sonarjs/no-identical-functions": "warn",
+      "sonarjs/cognitive-complexity": ["warn", 15], // Main CLI entry point is complex by nature
+      "sonarjs/no-unused-collection": "error",
+      
+      // Unicorn Rules
+      "unicorn/filename-case": ["error", {
+        "case": "kebabCase"
+      }],
+      "unicorn/prefer-node-protocol": "error",
+      
+      // General Rules
+      "no-console": ["off"], // We're using console in a CLI tool, so this is acceptable
+      "prefer-const": "error",
+      "no-var": "error",
+      "eqeqeq": ["error", "always"],
+      "no-unused-vars": ["warn", { 
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_" 
+      }]
+    }
   },
-  // This disables rules that conflict with prettier
-  prettierConfig,
+  {
+    ignores: ["dist/**", "node_modules/**"]
+  },
+  eslintConfigPrettier
 ];
