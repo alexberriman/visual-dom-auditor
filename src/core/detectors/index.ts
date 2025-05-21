@@ -24,6 +24,13 @@ export const detectors: Record<string, Detector> = {
   "container-overflow": containerOverflowDetector,
   scrollbar: scrollbarDetector,
   "flex-grid": flexGridDetector,
+  // Centering detector disabled by default due to high rate of false positives
+  // Include it explicitly if needed: import { centeringDetector } from "./detectors";
+  // centering: centeringDetector,
+};
+
+// Add disabled detectors here if you want them to be available but not enabled by default
+export const disabledDetectors: Record<string, Detector> = {
   centering: centeringDetector,
 };
 

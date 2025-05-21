@@ -34,7 +34,7 @@ const initializeIssueCounters = (): IssueCounters => {
       "container-overflow": 0,
       scrollbar: 0,
       layout: 0,
-      centering: 0,
+      centering: 0, // Disabled by default due to false positives
       "flex-grid": 0, // This may be mapped to "layout" in the code
     },
   };
@@ -124,7 +124,7 @@ const createAuditResult = (
         "container-overflow": counters.issuesByType["container-overflow"] || 0,
         scrollbar: counters.issuesByType.scrollbar || 0,
         layout: counters.issuesByType.layout || 0,
-        centering: counters.issuesByType.centering || 0,
+        centering: counters.issuesByType.centering || 0, // Disabled by default
       },
     },
   };

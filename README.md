@@ -74,6 +74,8 @@ visual-dom-auditor --url https://example.com --save ./reports/audit.json
 
 Visual DOM Auditor includes multiple specialized detectors that find common layout issues:
 
+> **Note:** The centering detector is disabled by default due to a high rate of false positives. See [Advanced Configuration](#-advanced-configuration) to learn how to enable it.
+
 ### Overlap Detector
 
 Identifies elements that visually overlap, which may indicate z-index issues or positioning bugs.
@@ -187,6 +189,23 @@ The tool outputs a structured JSON report with the following format:
 - 🔧 Self-healing CSS suggestions
 - 🌐 Multi-URL batch processing
 - 🎯 DOM targeting by area (header, footer, sidebar)
+
+## ⚙️ Advanced Configuration
+
+### Enabling Disabled Detectors
+
+Some detectors (such as the centering detector) are disabled by default due to generating too many false positives. You can enable them in your code by importing them directly:
+
+```javascript
+import { analyzePage } from "@alexberriman/visual-dom-auditor/core/analyzer";
+import { allDetectors, disabledDetectors } from "@alexberriman/visual-dom-auditor/core/detectors";
+
+// Create a custom detectors array with all detectors including disabled ones
+const myDetectors = [...allDetectors, disabledDetectors.centering];
+
+// Use the custom detectors array with the analyzer
+const result = await analyzePage(page, config, myDetectors);
+```
 
 ## 🤝 Contributing
 

@@ -63,7 +63,7 @@ export const analyzePage = async (
       "container-overflow": 0,
       scrollbar: 0,
       layout: 0,
-      centering: 0,
+      centering: 0, // Disabled by default due to false positives
     };
 
     // Count issues by type
