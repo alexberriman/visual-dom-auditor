@@ -247,14 +247,6 @@ The tool outputs a structured JSON report with the following format:
 }
 ```
 
-## 🗺️ Roadmap
-
-- 📸 Auto-screenshot annotations
-- 🧩 Plugin system for custom detectors
-- 🔧 Self-healing CSS suggestions
-- 🌐 Multi-URL batch processing
-- 🎯 DOM targeting by area (header, footer, sidebar)
-- 📱 Interactive report with visual overlays
 
 ## ⚙️ Advanced Configuration
 
