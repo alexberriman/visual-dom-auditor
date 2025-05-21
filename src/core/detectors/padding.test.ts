@@ -44,6 +44,7 @@ describe("PaddingDetector", () => {
         tagName: "button",
         bounds: { x: 10, y: 10, width: 100, height: 40 },
         padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        display: "inline-block",
       },
     ]);
 
@@ -71,6 +72,7 @@ describe("PaddingDetector", () => {
         tagName: "div",
         bounds: { x: 10, y: 10, width: 300, height: 200 },
         padding: { top: 4, right: 12, bottom: 4, left: 12 },
+        display: "block",
       },
     ]);
 
@@ -119,6 +121,7 @@ describe("PaddingDetector", () => {
         tagName: "div",
         bounds: { x: 10, y: 10, width: 300, height: 200 },
         padding: { top: 16, right: 16, bottom: 16, left: 16 },
+        display: "block",
       },
     ]);
 
@@ -140,6 +143,7 @@ describe("PaddingDetector", () => {
         tagName: "span",
         bounds: { x: 10, y: 10, width: 20, height: 20 },
         padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        display: "inline-block",
       },
     ]);
 
@@ -161,6 +165,7 @@ describe("PaddingDetector", () => {
         tagName: "a",
         bounds: { x: 10, y: 10, width: 100, height: 40 },
         padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        display: "block",
       },
     ]);
 
@@ -201,6 +206,7 @@ describe("PaddingDetector", () => {
         tagName: "div",
         bounds: { x: 10, y: 10, width: 300, height: 200 },
         padding: { top: 12, right: 12, bottom: 12, left: 12 },
+        display: "block",
       },
     ]);
 
@@ -212,6 +218,53 @@ describe("PaddingDetector", () => {
     if (!result.err) {
       expect(result.val.length).toBe(1); // Should detect issue with custom threshold
       expect(result.val[0].sides.length).toBe(4); // All sides have insufficient padding
+    }
+  });
+
+  it("should ignore links with display:inline", async () => {
+    // Setup
+    mockPage.evaluate = vi.fn().mockResolvedValue([
+      {
+        selector: "a.text-2xl.font-bold",
+        tagName: "a",
+        textContent: "example.com",
+        bounds: { x: 10, y: 10, width: 100, height: 30 },
+        padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        display: "inline",
+      },
+    ]);
+
+    // Execute
+    const result = await detector.detect(mockPage);
+
+    // Verify
+    expect(result.err).toBe(false);
+    if (!result.err) {
+      expect(result.val.length).toBe(0); // No issues because it's an inline link
+    }
+  });
+
+  it("should detect padding issues on links with display:block", async () => {
+    // Setup
+    mockPage.evaluate = vi.fn().mockResolvedValue([
+      {
+        selector: "a.button",
+        tagName: "a",
+        textContent: "Click Me",
+        bounds: { x: 10, y: 10, width: 100, height: 30 },
+        padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        display: "block",
+      },
+    ]);
+
+    // Execute
+    const result = await detector.detect(mockPage);
+
+    // Verify
+    expect(result.err).toBe(false);
+    if (!result.err) {
+      expect(result.val.length).toBe(1);
+      expect(result.val[0].severity).toBe("critical");
     }
   });
 });

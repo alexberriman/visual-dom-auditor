@@ -27,6 +27,7 @@ interface ElementWithPadding {
     bottom: number;
     left: number;
   };
+  display: string; // CSS display property
 }
 
 /**
@@ -60,6 +61,71 @@ const determineSeverity = (
 };
 
 /**
+ * List of interactive elements that should have padding
+ */
+const INTERACTIVE_SELECTORS = [
+  "button",
+  "a.button",
+  "a.btn",
+  "[role=button]",
+  ".button",
+  ".btn",
+  "input[type=button]",
+  "input[type=submit]",
+  "input[type=reset]",
+  "select",
+  "nav a",
+  "nav li",
+  ".nav-item",
+  ".menu-item",
+  ".card",
+  ".card-header",
+  ".card-body",
+  ".card-footer",
+  "form",
+  "fieldset",
+  ".form-group",
+  ".form-control",
+  ".input-group",
+].join(",");
+
+/**
+ * Generate a selector for an element
+ */
+const generateSelector = (element: Element, index: number): string => {
+  // Try to get id
+  if (element.id) {
+    return `#${element.id}`;
+  }
+
+  // Build path from element tag names
+  let selector = element.tagName.toLowerCase();
+
+  // Add class names (up to 2)
+  const classList = Array.prototype.slice.call(element.classList, 0, 2);
+  if (classList.length > 0) {
+    selector += `.${classList.join(".")}`;
+  }
+
+  // Add a data attribute to help identify it
+  return selector + `[data-vda-index="${index}"]`;
+};
+
+/**
+ * Process text content, trimming and truncating if needed
+ */
+const processTextContent = (text: string): string => {
+  const trimmed = text.trim();
+
+  // Truncate to reasonable length (50 chars) if needed
+  if (trimmed.length > 50) {
+    return trimmed.substring(0, 47) + "...";
+  }
+
+  return trimmed;
+};
+
+/**
  * Get interactive elements with padding information
  */
 const getElementsWithPadding = async (
@@ -68,42 +134,15 @@ const getElementsWithPadding = async (
   try {
     // Get all interactive elements that should have padding
     const elements = await page.evaluate(() => {
-      // Elements that should have padding
-      const INTERACTIVE_ELEMENTS = [
-        "button",
-        "a.button",
-        "a.btn",
-        "[role=button]",
-        ".button",
-        ".btn",
-        "input[type=button]",
-        "input[type=submit]",
-        "input[type=reset]",
-        "select",
-        "nav a",
-        "nav li",
-        ".nav-item",
-        ".menu-item",
-        ".card",
-        ".card-header",
-        ".card-body",
-        ".card-footer",
-        "form",
-        "fieldset",
-        ".form-group",
-        ".form-control",
-        ".input-group",
-      ].join(",");
-
       const elementsWithPadding: ElementWithPadding[] = [];
 
       // Query the elements
-      const allElements = document.querySelectorAll(INTERACTIVE_ELEMENTS);
+      const allElements = document.querySelectorAll(INTERACTIVE_SELECTORS);
 
       // Create array from NodeList for iteration
       const domElements = Array.prototype.slice.call(allElements);
 
-      // Get padding information for each element
+      // Process each element
       for (const [index, element] of domElements.entries()) {
         const rect = element.getBoundingClientRect();
 
@@ -123,40 +162,24 @@ const getElementsWithPadding = async (
           continue;
         }
 
-        // Generate a unique selector for this element
-        let selector = "";
-
-        // Try to get id
-        if (element.id) {
-          selector = `#${element.id}`;
-        } else {
-          // Build path from element tag names
-          selector = element.tagName.toLowerCase();
-
-          // Add class names (up to 2)
-          const classList = Array.prototype.slice.call(element.classList, 0, 2);
-          if (classList.length > 0) {
-            selector += `.${classList.join(".")}`;
-          }
-
-          // Add a data attribute to help identify it
-          selector += `[data-vda-index="${index}"]`;
+        // Skip links with display:inline - they don't need padding
+        if (element.tagName.toLowerCase() === "a" && styles.display === "inline") {
+          continue;
         }
+
+        // Generate a unique selector for this element
+        const selector = generateSelector(element, index);
 
         // Get padding information
-        const paddingTop = Number.parseInt(styles.paddingTop, 10);
-        const paddingRight = Number.parseInt(styles.paddingRight, 10);
-        const paddingBottom = Number.parseInt(styles.paddingBottom, 10);
-        const paddingLeft = Number.parseInt(styles.paddingLeft, 10);
+        const padding = {
+          top: Number.parseInt(styles.paddingTop, 10),
+          right: Number.parseInt(styles.paddingRight, 10),
+          bottom: Number.parseInt(styles.paddingBottom, 10),
+          left: Number.parseInt(styles.paddingLeft, 10),
+        };
 
-        // Get text content (with trimming and truncation)
-        let textContent = element.textContent || "";
-        textContent = textContent.trim();
-
-        // Truncate to reasonable length (50 chars) if needed
-        if (textContent.length > 50) {
-          textContent = textContent.substring(0, 47) + "...";
-        }
+        // Process text content
+        const textContent = processTextContent(element.textContent || "");
 
         elementsWithPadding.push({
           selector,
@@ -168,12 +191,8 @@ const getElementsWithPadding = async (
             width: rect.width,
             height: rect.height,
           },
-          padding: {
-            top: paddingTop,
-            right: paddingRight,
-            bottom: paddingBottom,
-            left: paddingLeft,
-          },
+          padding,
+          display: styles.display,
         });
       }
 
@@ -248,6 +267,11 @@ export class PaddingDetector implements Detector {
   private checkElementPadding(element: ElementWithPadding): PaddingIssue | null {
     // Skip ignored elements
     if (this.shouldIgnoreElement(element.selector)) {
+      return null;
+    }
+
+    // Skip links with display:inline as they don't need padding
+    if (element.tagName === "a" && element.display === "inline") {
       return null;
     }
 
