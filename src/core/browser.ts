@@ -98,15 +98,59 @@ const scrollPage = async (page: Page): Promise<Result<void, BrowserError>> => {
 };
 
 /**
- * Wait for the page to be stable (no more layout shifts or network activity)
+ * Wait for the page to be stable (no more layout shifts, network activity, or animations)
  */
 const waitForStability = async (page: Page): Promise<Result<void, BrowserError>> => {
   try {
-    // Wait a moment for any javascript to finish executing
+    // Wait for network activity to complete
+    await page.waitForLoadState("networkidle");
+
+    // Wait for any JavaScript to finish executing
     await page.waitForTimeout(500);
 
-    // Wait for a stable load state
-    await page.waitForLoadState("networkidle");
+    // Wait for animations to complete
+    // Most modern animation libraries (including Framer Motion) use CSS transitions/animations
+    // or requestAnimationFrame, which typically complete within 1-2 seconds
+    const ANIMATION_WAIT_TIME = 2000; // 2 seconds should cover most animations
+
+    console.log(`Waiting ${ANIMATION_WAIT_TIME}ms for animations to complete...`);
+    await page.waitForTimeout(ANIMATION_WAIT_TIME);
+
+    // Optional: Check if animations are still in progress
+    const animationsInProgress = await page.evaluate(() => {
+      // Check for CSS animations
+      const animatingElements = document.querySelectorAll("*");
+      let hasActiveAnimations = false;
+
+      // Convert NodeList to Array to ensure iterator is available
+      const elementsArray = Array.from(animatingElements);
+      for (const element of elementsArray) {
+        const styles = window.getComputedStyle(element);
+        if (
+          styles.animationName !== "none" ||
+          styles.transition !== "all 0s ease 0s" ||
+          element.classList.contains("animate-") ||
+          element.getAttribute("data-framer-motion") // Framer Motion adds this attribute
+        ) {
+          hasActiveAnimations = true;
+          break;
+        }
+      }
+
+      return hasActiveAnimations;
+    });
+
+    if (animationsInProgress) {
+      console.log("Animations still in progress, waiting additional time...");
+      // Wait a bit longer if animations are still detected
+      await page.waitForTimeout(1000);
+    }
+
+    // Scroll back to top once more to ensure we're at the correct position for analysis
+    await page.evaluate(() => window.scrollTo(0, 0));
+
+    // Final short wait to ensure everything is settled
+    await page.waitForTimeout(300);
 
     return Ok(undefined);
   } catch (error) {

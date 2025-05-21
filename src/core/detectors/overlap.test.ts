@@ -42,10 +42,12 @@ describe("OverlapDetector", () => {
       {
         selector: "#element1",
         bounds: { x: 0, y: 0, width: 100, height: 100 },
+        isFixed: false,
       },
       {
         selector: "#element2",
         bounds: { x: 50, y: 50, width: 100, height: 100 },
+        isFixed: false,
       },
     ]);
 
@@ -68,10 +70,12 @@ describe("OverlapDetector", () => {
       {
         selector: "#element1",
         bounds: { x: 0, y: 0, width: 100, height: 100 },
+        isFixed: false,
       },
       {
         selector: "#element2",
         bounds: { x: 95, y: 95, width: 100, height: 100 },
+        isFixed: false,
       },
     ]);
 
@@ -96,10 +100,12 @@ describe("OverlapDetector", () => {
       {
         selector: "#element1",
         bounds: { x: 0, y: 0, width: 100, height: 100 },
+        isFixed: false,
       },
       {
         selector: ".tooltip",
         bounds: { x: 50, y: 50, width: 100, height: 100 },
+        isFixed: false,
       },
     ]);
 
@@ -119,10 +125,12 @@ describe("OverlapDetector", () => {
       {
         selector: "#element1",
         bounds: { x: 0, y: 0, width: 100, height: 100 },
+        isFixed: false,
       },
       {
         selector: "#element2",
         bounds: { x: 25, y: 25, width: 100, height: 100 },
+        isFixed: false,
       },
     ]);
 
@@ -147,11 +155,13 @@ describe("OverlapDetector", () => {
       {
         selector: "#element1",
         bounds: { x: 0, y: 0, width: 100, height: 100 },
+        isFixed: false,
       },
       {
         selector: "#element2",
         // 20x20 overlap = 20% of 100x100
         bounds: { x: 80, y: 80, width: 100, height: 100 },
+        isFixed: false,
       },
     ]);
 
@@ -177,6 +187,66 @@ describe("OverlapDetector", () => {
     expect(result.err).toBe(true);
     if (result.err) {
       expect(result.val.message).toContain("Failed to");
+    }
+  });
+
+  it("should properly handle fixed elements with no visual overlap", async () => {
+    // Setup - A fixed header and a regular element with apparent document coordinate overlap
+    // but no visual overlap in the viewport
+    mockPage.evaluate = vi.fn().mockResolvedValue([
+      {
+        selector: "header.fixed",
+        textContent: "Fixed Header",
+        bounds: { x: 0, y: 0, width: 100, height: 50 },
+        isFixed: true,
+      },
+      {
+        selector: "h1.title",
+        textContent: "Page Title",
+        // Would overlap in document coordinates but not in viewport
+        bounds: { x: 0, y: 200, width: 100, height: 50 },
+        isFixed: false,
+      },
+    ]);
+
+    // Execute
+    const result = await detector.detect(mockPage);
+
+    // Verify - Should not detect overlap since they don't overlap visually
+    expect(result.err).toBe(false);
+    if (!result.err) {
+      expect(result.val.length).toBe(0);
+    }
+  });
+
+  it("should detect overlaps between fixed navigation elements", async () => {
+    // Setup - Two fixed navigation elements that visually overlap
+    mockPage.evaluate = vi.fn().mockResolvedValue([
+      {
+        selector: "nav.fixed",
+        textContent: "Navigation",
+        bounds: { x: 0, y: 0, width: 100, height: 50 },
+        isFixed: true,
+      },
+      {
+        selector: ".logo",
+        textContent: "Logo",
+        // Visual overlap in the viewport
+        bounds: { x: 25, y: 0, width: 50, height: 50 },
+        isFixed: true,
+      },
+    ]);
+
+    // Execute
+    const result = await detector.detect(mockPage);
+
+    // Verify - Should detect overlap since they visually overlap in the viewport
+    expect(result.err).toBe(false);
+    if (!result.err) {
+      expect(result.val.length).toBe(1);
+      expect(result.val[0].type).toBe("overlap");
+      expect(result.val[0].elements.length).toBe(2);
+      expect(result.val[0].severity).toBe("critical"); // High overlap percentage
     }
   });
 });
