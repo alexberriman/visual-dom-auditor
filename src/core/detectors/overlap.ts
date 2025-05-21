@@ -584,57 +584,81 @@ export class OverlapDetector implements Detector {
    * Filter out overlaps that are likely to be false positives
    * We've revised this to ensure navigation and header overlaps are detected
    */
+  /**
+   * Checks if an element is a common navigation or header element
+   */
+  private isCommonNavElement(el: ElementWithBounds): boolean {
+    return (
+      el.selector.includes("nav") ||
+      el.selector.includes("header") ||
+      el.selector.includes("menu") ||
+      el.selector.includes("brand") ||
+      el.selector.includes("logo")
+    );
+  }
+
+  /**
+   * Checks if elements have positioning that suggests they're outside the viewport
+   */
+  private isOutsideViewportFalsePositive(
+    elementA: ElementWithBounds,
+    elementB: ElementWithBounds
+  ): boolean {
+    const elementAFarOutsideTop = elementA.bounds.y < -100; // Far above viewport
+    const elementBFarOutsideTop = elementB.bounds.y < -100;
+
+    // Check if one element is outside viewport and the other isn't
+    const onlyOneOutside =
+      (elementAFarOutsideTop && !elementBFarOutsideTop) ||
+      (!elementAFarOutsideTop && elementBFarOutsideTop);
+
+    // Only filter if neither is a nav element
+    return (
+      onlyOneOutside && !this.isCommonNavElement(elementA) && !this.isCommonNavElement(elementB)
+    );
+  }
+
+  /**
+   * Checks for false positives with fixed elements
+   */
+  private isFixedElementFalsePositive(
+    elementA: ElementWithBounds,
+    elementB: ElementWithBounds,
+    overlap: { percentage: number }
+  ): boolean {
+    const oneIsFixed = Boolean(elementA.isFixed) !== Boolean(elementB.isFixed);
+    if (!oneIsFixed) return false;
+
+    const fixedElement = elementA.isFixed ? elementA : elementB;
+    const nonFixedElement = elementA.isFixed ? elementB : elementA;
+
+    // For nav elements with small overlap, likely a false positive
+    const bothAreNavElements =
+      this.isHeaderNavElement(fixedElement.selector) &&
+      this.isHeaderNavElement(nonFixedElement.selector);
+
+    return bothAreNavElements && overlap.percentage < 25;
+  }
+
+  /**
+   * Main method to determine if an overlap is likely a false positive
+   */
   private isLikelyFalsePositive(
     elementA: ElementWithBounds,
     elementB: ElementWithBounds,
     overlap: { width: number; height: number; area: number; percentage: number }
   ): boolean {
-    // Only filter out extreme cases where an element is way outside the viewport
-    // But preserve actual overlaps within the navigation/header area
-    const elementAFarOutsideTop = elementA.bounds.y < -100; // Only filter out elements very far above viewport
-    const elementBFarOutsideTop = elementB.bounds.y < -100;
-
-    // Don't treat nav/header elements as false positives - we want to detect these overlaps
-    const isNavElement = (el: ElementWithBounds): boolean => {
-      return (
-        el.selector.includes("nav") ||
-        el.selector.includes("header") ||
-        el.selector.includes("menu") ||
-        el.selector.includes("brand") ||
-        el.selector.includes("logo")
-      );
-    };
-
-    // Only filter out extreme cases where one element is way above viewport
-    // AND neither element is a navigation element (we want to catch nav overlaps)
-    if (
-      (elementAFarOutsideTop && !elementBFarOutsideTop) ||
-      (!elementAFarOutsideTop && elementBFarOutsideTop)
-    ) {
-      if (!isNavElement(elementA) && !isNavElement(elementB)) {
-        return true; // Only filter out non-nav elements that are far outside viewport
-      }
+    // Check if elements are outside viewport (but not nav elements)
+    if (this.isOutsideViewportFalsePositive(elementA, elementB)) {
+      return true;
     }
 
-    // Check for fixed element vs regular element positioning
-    const oneIsFixed = Boolean(elementA.isFixed) !== Boolean(elementB.isFixed);
-
-    // Consider the context of viewport for fixed elements
-    // If one element is fixed and out of the current viewport, it's likely a false positive
-    if (oneIsFixed) {
-      const fixedElement = elementA.isFixed ? elementA : elementB;
-      const nonFixedElement = elementA.isFixed ? elementB : elementA;
-
-      // If they're both header/nav elements, be more careful about reporting overlaps
-      const bothAreNavElements =
-        this.isHeaderNavElement(fixedElement.selector) &&
-        this.isHeaderNavElement(nonFixedElement.selector);
-
-      if (bothAreNavElements && overlap.percentage < 25) {
-        return true; // Likely false positive for nav elements with small overlap
-      }
+    // Check for fixed element false positives
+    if (this.isFixedElementFalsePositive(elementA, elementB, overlap)) {
+      return true;
     }
-    // If either element is a nav element, we always want to see overlaps - never filter
+
+    // If either element is a nav element, preserve the overlap
     if (this.isHeaderNavElement(elementA.selector) || this.isHeaderNavElement(elementB.selector)) {
       return false;
     }
@@ -697,84 +721,118 @@ export class OverlapDetector implements Detector {
   /**
    * Process a detected overlap and create an issue if necessary
    */
+  /**
+   * Checks if we should skip an overlap between navigation elements with mixed positioning
+   */
+  private shouldSkipMixedPositioningNavOverlap(
+    elementA: ElementWithBounds,
+    elementB: ElementWithBounds,
+    overlap: ReturnType<typeof calculateOverlapArea>
+  ): boolean {
+    const oneIsFixed = Boolean(elementA.isFixed) !== Boolean(elementB.isFixed);
+    const bothAreNavElements =
+      this.isHeaderNavElement(elementA.selector) && this.isHeaderNavElement(elementB.selector);
+
+    // Require higher overlap percentage for mixed positioning navigation elements
+    if (!overlap) return false;
+    return oneIsFixed && bothAreNavElements && overlap.percentage < 15;
+  }
+
+  /**
+   * Check if an element is a header element (h2, brand, logo, etc.)
+   */
+  private isHeaderElement(element: ElementWithBounds): boolean {
+    return (
+      element.selector.includes("h2") ||
+      element.selector.includes("brand") ||
+      element.selector.includes("logo") ||
+      element.selector.startsWith("header")
+    );
+  }
+
+  /**
+   * Check if an element is a navigation link
+   */
+  private isNavLink(element: ElementWithBounds): boolean {
+    return (
+      element.selector.includes("nav") ||
+      element.selector.includes("a.") ||
+      element.selector.includes("menu")
+    );
+  }
+
+  /**
+   * Check if we should skip an h1 element overlap outside the viewport
+   */
+  private shouldSkipHeadingOutsideViewport(
+    elementA: ElementWithBounds,
+    elementB: ElementWithBounds
+  ): boolean {
+    // Only check if either element is above viewport
+    if (!(elementA.bounds.y < -75 || elementB.bounds.y < -75)) {
+      return false;
+    }
+
+    // Check if we have mixed positioning (one in viewport, one outside)
+    const hasMixedPositioning =
+      (elementA.bounds.y < -75 && elementB.bounds.y >= 0) ||
+      (elementB.bounds.y < -75 && elementA.bounds.y >= 0);
+
+    if (!hasMixedPositioning) {
+      return false;
+    }
+
+    // Check if one is a large heading and the other isn't navigation
+    const aIsLargeHeading = elementA.selector.includes("h1");
+    const bIsLargeHeading = elementB.selector.includes("h1");
+
+    return (
+      (aIsLargeHeading && !this.isNavLink(elementB)) ||
+      (bIsLargeHeading && !this.isNavLink(elementA))
+    );
+  }
+
+  /**
+   * Check if an element selector indicates a navigation or header component
+   */
+  private isNavOrHeader(selector: string): boolean {
+    return (
+      selector.includes("header") ||
+      selector.includes("nav") ||
+      selector.includes("menu") ||
+      selector.includes("navigation") ||
+      selector.includes("navbar") ||
+      selector.includes("logo") ||
+      selector.includes("brand")
+    );
+  }
+
+  /**
+   * Process a detected overlap and create an issue if necessary
+   */
   private processOverlap(
     elementA: ElementWithBounds,
     elementB: ElementWithBounds,
     overlap: ReturnType<typeof calculateOverlapArea>
   ): OverlapIssue | null {
-    // Skip overlap reporting if one element is fixed and the other isn't, and they're both navigational elements
-    const oneIsFixed = Boolean(elementA.isFixed) !== Boolean(elementB.isFixed);
-    const bothAreNavElements =
-      this.isHeaderNavElement(elementA.selector) && this.isHeaderNavElement(elementB.selector);
-
-    // Special case: be more cautious with false positives between fixed nav elements and other nav elements
-    if (oneIsFixed && bothAreNavElements) {
-      // Require higher overlap percentage for mixed positioning navigation elements
-      if (overlap && overlap.percentage < 15) {
-        return null;
-      }
+    // Skip mixed positioning nav overlaps
+    if (this.shouldSkipMixedPositioningNavOverlap(elementA, elementB, overlap)) {
+      return null;
     }
 
-    // We only want to filter the false positives with the h1 tag far outside viewport
-    // But we MUST NOT filter real overlaps within the header/nav area
-    const isHeaderElement = (element: ElementWithBounds): boolean => {
-      return (
-        element.selector.includes("h2") ||
-        element.selector.includes("brand") ||
-        element.selector.includes("logo") ||
-        element.selector.startsWith("header")
-      );
-    };
-
-    const isNavLink = (element: ElementWithBounds): boolean => {
-      return (
-        element.selector.includes("nav") ||
-        element.selector.includes("a.") ||
-        element.selector.includes("menu")
-      );
-    };
-
-    // If both elements are in the header area, always check for overlaps
-    if (
-      (isHeaderElement(elementA) && isNavLink(elementB)) ||
-      (isNavLink(elementA) && isHeaderElement(elementB))
-    ) {
-      // Do not filter these - we want to detect overlaps within header/nav
+    // Skip h1 outside viewport if needed
+    if (this.shouldSkipHeadingOutsideViewport(elementA, elementB)) {
+      return null;
     }
-    // Only filter cases where one element is truly out of viewport (h1)
-    else if (elementA.bounds.y < -75 || elementB.bounds.y < -75) {
-      // Check if we have an element outside viewport and another in viewport
-      if (
-        (elementA.bounds.y < -75 && elementB.bounds.y >= 0) ||
-        (elementB.bounds.y < -75 && elementA.bounds.y >= 0)
-      ) {
-        // Only skip if one is a large heading (h1) and the other isn't part of navigation
-        const aIsLargeHeading = elementA.selector.includes("h1");
-        const bIsLargeHeading = elementB.selector.includes("h1");
 
-        if (
-          (aIsLargeHeading && !isNavLink(elementB)) ||
-          (bIsLargeHeading && !isNavLink(elementA))
-        ) {
-          return null; // This is the specific false positive we want to filter
-        }
-      }
-    }
-    // Check for navigation/header elements first - we never want to miss these
-    const isNavOrHeader = (selector: string): boolean => {
-      return (
-        selector.includes("header") ||
-        selector.includes("nav") ||
-        selector.includes("menu") ||
-        selector.includes("navigation") ||
-        selector.includes("navbar") ||
-        selector.includes("logo") ||
-        selector.includes("brand")
-      );
-    };
+    // Always check overlaps if both elements are in header/nav area
+    const headerNavCombo =
+      (this.isHeaderElement(elementA) && this.isNavLink(elementB)) ||
+      (this.isNavLink(elementA) && this.isHeaderElement(elementB));
 
-    // Use a lower threshold for navigation elements (1%) to catch even small overlaps in navs
-    const isNavOverlap = isNavOrHeader(elementA.selector) || isNavOrHeader(elementB.selector);
+    // Check for navigation/header overlap
+    const isNavOverlap =
+      this.isNavOrHeader(elementA.selector) || this.isNavOrHeader(elementB.selector);
     const navThreshold = 1; // 1% for navigation elements
 
     // Skip if no overlap or below appropriate threshold
@@ -788,20 +846,19 @@ export class OverlapDetector implements Detector {
     }
 
     // Skip likely false positives UNLESS this is a navigation/header overlap
-    if (!isNavOverlap && this.isLikelyFalsePositive(elementA, elementB, overlap)) {
+    if (
+      !isNavOverlap &&
+      !headerNavCombo &&
+      this.isLikelyFalsePositive(elementA, elementB, overlap)
+    ) {
       return null;
     }
 
-    // Determine severity and create locations
-    // Navigation overlaps are always considered critical
+    // Create issue with appropriate severity
     const severity = isNavOverlap ? "critical" : determineSeverity(overlap.percentage);
-
     const locations = [this.createElementLocation(elementA), this.createElementLocation(elementB)];
-
-    // Create message
     const message = this.createOverlapMessage(elementA, elementB, overlap.percentage);
 
-    // Return the issue
     return {
       type: "overlap",
       severity,
@@ -1094,8 +1151,7 @@ export class OverlapDetector implements Detector {
 
       // Convert to OverlapIssue format but take only the top 10 most significant overlaps
       return this.processHeaderOverlaps(headerOverlaps);
-    } catch (error) {
-      console.error("Error in special header detection:", error);
+    } catch {
       return [];
     }
   }
@@ -1204,17 +1260,13 @@ export class OverlapDetector implements Detector {
 
       // First, try the special header detection if enabled
       if (this.specialHeaderDetection) {
-        console.log("Running special header/navigation overlap detection...");
         const headerIssues = await this.detectHeaderOverlaps(page);
         if (headerIssues.length > 0) {
-          console.log(`Found ${headerIssues.length} header/navigation overlaps`);
           issues = issues.concat(headerIssues);
 
           // If we found header issues, just return them immediately
           // This is a workaround for a potential bug elsewhere
           return Ok(headerIssues);
-        } else {
-          console.log("No header/navigation overlaps detected");
         }
       }
 
@@ -1229,23 +1281,7 @@ export class OverlapDetector implements Detector {
         (element) => !this.shouldIgnoreElement(element.selector)
       );
 
-      console.log(
-        `Regular detection: found ${validElements.length} valid elements for overlap checking`
-      );
-
-      // Check for header or navigation elements in our filtered set
-      const headerNavElements = validElements.filter(
-        (el) =>
-          el.selector.includes("header") ||
-          el.selector.includes("nav") ||
-          el.selector.includes("menu") ||
-          el.selector.includes("logo") ||
-          el.selector.includes("brand")
-      );
-
-      if (headerNavElements.length > 0) {
-        console.log(`Found ${headerNavElements.length} header/nav elements in filtered set`);
-      }
+      // Skip unnecessary filter operation since we don't use the results
 
       // Compare each element with every other element
       for (let i = 0; i < validElements.length; i++) {
@@ -1262,7 +1298,6 @@ export class OverlapDetector implements Detector {
         }
       }
 
-      console.log(`Total overlap issues found: ${issues.length}`);
       return Ok(issues);
     } catch (error) {
       return Err({

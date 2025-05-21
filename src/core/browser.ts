@@ -113,7 +113,6 @@ const waitForStability = async (page: Page): Promise<Result<void, BrowserError>>
     // or requestAnimationFrame, which typically complete within 1-2 seconds
     const ANIMATION_WAIT_TIME = 2000; // 2 seconds should cover most animations
 
-    console.log(`Waiting ${ANIMATION_WAIT_TIME}ms for animations to complete...`);
     await page.waitForTimeout(ANIMATION_WAIT_TIME);
 
     // Optional: Check if animations are still in progress
@@ -141,7 +140,6 @@ const waitForStability = async (page: Page): Promise<Result<void, BrowserError>>
     });
 
     if (animationsInProgress) {
-      console.log("Animations still in progress, waiting additional time...");
       // Wait a bit longer if animations are still detected
       await page.waitForTimeout(1000);
     }

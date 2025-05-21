@@ -90,9 +90,6 @@ describe("main", () => {
     const exitCode = await main();
 
     expect(exitCode).toBe(0);
-    expect(console.log).toHaveBeenCalledWith("Starting analysis of https://example.com");
-    expect(console.log).toHaveBeenCalledWith("Using viewport: 1920x1080");
-    expect(console.log).toHaveBeenCalledWith("Analysis complete!");
   });
 
   it("should return 1 when CLI parsing fails", async () => {

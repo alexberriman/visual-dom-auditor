@@ -52,13 +52,9 @@ const runDetectors = async (page: import("playwright-core").Page): Promise<Issue
   // Run each detector separately to prevent one failure from stopping everything
   for (const [name, detector] of Object.entries(detectors)) {
     try {
-      console.log(`Running ${name} detector...`);
-
       const result = await detector.detect(page);
 
       if (result.ok && result.val.length > 0) {
-        console.log(`- Found ${result.val.length} issues with ${name} detector`);
-
         // Add issues to our collection
         counters.allIssues.push(...result.val);
 
@@ -137,11 +133,7 @@ const outputResults = async (
   results: import("./types/issues").AuditResult,
   savePath?: string
 ): Promise<void> => {
-  console.log("Analysis complete!");
-  console.log(`Found ${results.metadata.totalIssuesFound} issues.`);
-
   if (savePath) {
-    console.log(`Saving results to ${savePath}`);
     // Create directory if it doesn't exist
     const directory = path.dirname(savePath);
     await fs.mkdir(directory, { recursive: true });
@@ -149,7 +141,7 @@ const outputResults = async (
     // Write results to file
     await fs.writeFile(savePath, JSON.stringify(results, null, 2), "utf8");
   } else {
-    console.log(JSON.stringify(results, null, 2));
+    process.stdout.write(JSON.stringify(results, null, 2));
   }
 };
 
@@ -167,9 +159,6 @@ const main = async (): Promise<number> => {
   const config = cliResult.val;
 
   try {
-    console.log(`Starting analysis of ${config.url}`);
-    console.log(`Using viewport: ${config.viewport.width}x${config.viewport.height}`);
-
     // Launch browser and prepare page
     const prepareResult = await preparePage(config);
 
@@ -181,9 +170,6 @@ const main = async (): Promise<number> => {
     const { browser, page } = prepareResult.val;
 
     try {
-      console.log("Page prepared successfully. Running analysis...");
-      console.log("Running detectors individually for stability...");
-
       // Run all detectors and collect results
       const counters = await runDetectors(page);
 
