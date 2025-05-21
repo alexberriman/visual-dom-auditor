@@ -12,6 +12,91 @@ const createMockPage = (): { page: Page } => {
   return { page };
 };
 
+// Helper to create test elements with padding
+const createTestElement = (props: {
+  selector: string;
+  tagName: string;
+  bounds: { x: number; y: number; width: number; height: number };
+  padding: { top: number; right: number; bottom: number; left: number };
+  display: string;
+  textContent?: string;
+  hasDimensions?: { width: boolean; height: boolean };
+  classes?: string[];
+}): {
+  selector: string;
+  tagName: string;
+  textContent?: string;
+  bounds: { x: number; y: number; width: number; height: number };
+  padding: { top: number; right: number; bottom: number; left: number };
+  display: string;
+  hasDimensions: { width: boolean; height: boolean };
+  styleInfo: {
+    explicit: {
+      width: null;
+      height: null;
+      padding: {
+        top: null;
+        right: null;
+        bottom: null;
+        left: null;
+      };
+    };
+    computed: {
+      width: string;
+      height: string;
+      paddingTop: string;
+      paddingRight: string;
+      paddingBottom: string;
+      paddingLeft: string;
+      boxSizing: string;
+    };
+    classes: string[];
+  };
+} => {
+  const {
+    selector,
+    tagName,
+    bounds,
+    padding,
+    display,
+    textContent,
+    hasDimensions = { width: false, height: false },
+    classes = [],
+  } = props;
+
+  return {
+    selector,
+    tagName,
+    textContent,
+    bounds,
+    padding,
+    display,
+    hasDimensions,
+    styleInfo: {
+      explicit: {
+        width: null,
+        height: null,
+        padding: {
+          top: null,
+          right: null,
+          bottom: null,
+          left: null,
+        },
+      },
+      computed: {
+        width: `${bounds.width}px`,
+        height: `${bounds.height}px`,
+        paddingTop: `${padding.top}px`,
+        paddingRight: `${padding.right}px`,
+        paddingBottom: `${padding.bottom}px`,
+        paddingLeft: `${padding.left}px`,
+        boxSizing: "content-box",
+      },
+      classes: classes.length > 0 ? classes : selector.split(".").filter((s) => s !== ""),
+    },
+  };
+};
+
 describe("PaddingDetector", () => {
   let detector: PaddingDetector;
   let mockPage: Page;
@@ -39,13 +124,14 @@ describe("PaddingDetector", () => {
   it("should detect buttons with zero padding", async () => {
     // Setup
     mockPage.evaluate = vi.fn().mockResolvedValue([
-      {
+      createTestElement({
         selector: "button.primary",
         tagName: "button",
         bounds: { x: 10, y: 10, width: 100, height: 40 },
         padding: { top: 0, right: 0, bottom: 0, left: 0 },
         display: "inline-block",
-      },
+        classes: ["primary"],
+      }),
     ]);
 
     // Execute
@@ -67,13 +153,14 @@ describe("PaddingDetector", () => {
   it("should detect elements with insufficient padding", async () => {
     // Setup
     mockPage.evaluate = vi.fn().mockResolvedValue([
-      {
+      createTestElement({
         selector: ".card",
         tagName: "div",
         bounds: { x: 10, y: 10, width: 300, height: 200 },
         padding: { top: 4, right: 12, bottom: 4, left: 12 },
         display: "block",
-      },
+        classes: ["card"],
+      }),
     ]);
 
     // Execute
@@ -94,12 +181,14 @@ describe("PaddingDetector", () => {
   it("should apply stricter requirements for important interactive elements", async () => {
     // Setup
     mockPage.evaluate = vi.fn().mockResolvedValue([
-      {
+      createTestElement({
         selector: "button.primary",
         tagName: "button",
         bounds: { x: 10, y: 10, width: 100, height: 40 },
         padding: { top: 8, right: 8, bottom: 8, left: 8 },
-      },
+        display: "inline-block",
+        classes: ["primary"],
+      }),
     ]);
 
     // Execute
@@ -116,13 +205,13 @@ describe("PaddingDetector", () => {
   it("should not report issues for elements with sufficient padding", async () => {
     // Setup
     mockPage.evaluate = vi.fn().mockResolvedValue([
-      {
+      createTestElement({
         selector: ".card",
         tagName: "div",
         bounds: { x: 10, y: 10, width: 300, height: 200 },
         padding: { top: 16, right: 16, bottom: 16, left: 16 },
         display: "block",
-      },
+      }),
     ]);
 
     // Execute
@@ -138,13 +227,14 @@ describe("PaddingDetector", () => {
   it("should ignore elements in the ignored list", async () => {
     // Setup
     mockPage.evaluate = vi.fn().mockResolvedValue([
-      {
+      createTestElement({
         selector: ".icon.close",
         tagName: "span",
         bounds: { x: 10, y: 10, width: 20, height: 20 },
         padding: { top: 0, right: 0, bottom: 0, left: 0 },
         display: "inline-block",
-      },
+        classes: ["icon", "close"],
+      }),
     ]);
 
     // Execute
@@ -160,13 +250,14 @@ describe("PaddingDetector", () => {
   it("should mark severe issues as critical", async () => {
     // Setup
     mockPage.evaluate = vi.fn().mockResolvedValue([
-      {
+      createTestElement({
         selector: "a.btn",
         tagName: "a",
         bounds: { x: 10, y: 10, width: 100, height: 40 },
         padding: { top: 0, right: 0, bottom: 0, left: 0 },
         display: "block",
-      },
+        classes: ["btn"],
+      }),
     ]);
 
     // Execute
@@ -201,13 +292,14 @@ describe("PaddingDetector", () => {
     });
 
     mockPage.evaluate = vi.fn().mockResolvedValue([
-      {
+      createTestElement({
         selector: ".card",
         tagName: "div",
         bounds: { x: 10, y: 10, width: 300, height: 200 },
         padding: { top: 12, right: 12, bottom: 12, left: 12 },
         display: "block",
-      },
+        classes: ["card"],
+      }),
     ]);
 
     // Execute
@@ -224,14 +316,15 @@ describe("PaddingDetector", () => {
   it("should ignore links with display:inline", async () => {
     // Setup
     mockPage.evaluate = vi.fn().mockResolvedValue([
-      {
+      createTestElement({
         selector: "a.text-2xl.font-bold",
         tagName: "a",
         textContent: "example.com",
         bounds: { x: 10, y: 10, width: 100, height: 30 },
         padding: { top: 0, right: 0, bottom: 0, left: 0 },
         display: "inline",
-      },
+        classes: ["text-2xl", "font-bold"],
+      }),
     ]);
 
     // Execute
@@ -247,14 +340,15 @@ describe("PaddingDetector", () => {
   it("should detect padding issues on links with display:block", async () => {
     // Setup
     mockPage.evaluate = vi.fn().mockResolvedValue([
-      {
+      createTestElement({
         selector: "a.button",
         tagName: "a",
         textContent: "Click Me",
         bounds: { x: 10, y: 10, width: 100, height: 30 },
         padding: { top: 0, right: 0, bottom: 0, left: 0 },
         display: "block",
-      },
+        classes: ["button"],
+      }),
     ]);
 
     // Execute
@@ -265,6 +359,36 @@ describe("PaddingDetector", () => {
     if (!result.err) {
       expect(result.val.length).toBe(1);
       expect(result.val[0].severity).toBe("critical");
+    }
+  });
+
+  it("should detect buttons with inline-flex display that have zero padding", async () => {
+    // Setup
+    mockPage.evaluate = vi.fn().mockResolvedValue([
+      createTestElement({
+        selector: "button.inline-flex.items-center",
+        tagName: "button",
+        textContent: "Get Started",
+        bounds: { x: 100, y: 20, width: 120, height: 40 },
+        padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        display: "inline-flex",
+        classes: ["inline-flex", "items-center"],
+      }),
+    ]);
+
+    // Execute
+    const result = await detector.detect(mockPage);
+
+    // Verify
+    expect(result.err).toBe(false);
+    if (!result.err) {
+      expect(result.val.length).toBe(1);
+      expect(result.val[0].type).toBe("padding");
+      expect(result.val[0].severity).toBe("critical");
+      expect(result.val[0].sides).toContain("top");
+      expect(result.val[0].sides).toContain("right");
+      expect(result.val[0].sides).toContain("bottom");
+      expect(result.val[0].sides).toContain("left");
     }
   });
 });
