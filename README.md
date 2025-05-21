@@ -1,10 +1,8 @@
-# Visual DOM Auditor
+<h1 align="center">Visual DOM Auditor</h1>
 
 <div align="center">
   
-  ![Visual DOM Auditor Logo](https://via.placeholder.com/200x200.png?text=VDA)
-  
-  **A powerful CLI tool that detects critical layout issues on websites using headless browser technology.**
+  **A CLI tool for detecting layout issues on websites by analyzing the DOM using Playwright.**
   
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
   [![npm version](https://img.shields.io/npm/v/@alexberriman/visual-dom-auditor.svg)](https://www.npmjs.com/package/@alexberriman/visual-dom-auditor)
