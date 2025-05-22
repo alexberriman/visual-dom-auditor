@@ -64,6 +64,7 @@ export const analyzePage = async (
       scrollbar: 0,
       layout: 0,
       centering: 0, // Disabled by default due to false positives
+      "console-error": 0,
     };
 
     // Count issues by type

@@ -25,7 +25,8 @@ export type IssueType =
   | "container-overflow"
   | "scrollbar"
   | "layout"
-  | "centering";
+  | "centering"
+  | "console-error";
 
 /**
  * Base issue interface
@@ -111,6 +112,20 @@ export interface CenteringIssue extends BaseIssue {
 }
 
 /**
+ * Console error issue
+ */
+export interface ConsoleErrorIssue extends BaseIssue {
+  readonly type: "console-error";
+  readonly level: "error" | "warning";
+  readonly source: {
+    readonly url?: string;
+    readonly line?: number;
+    readonly column?: number;
+  };
+  readonly stackTrace?: string;
+}
+
+/**
  * Union type of all issue types
  */
 export type Issue =
@@ -120,7 +135,8 @@ export type Issue =
   | ContainerOverflowIssue
   | ScrollbarIssue
   | LayoutIssue
-  | CenteringIssue;
+  | CenteringIssue
+  | ConsoleErrorIssue;
 
 /**
  * Audit result

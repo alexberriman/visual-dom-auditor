@@ -121,6 +121,7 @@ const createAuditResult = (
         scrollbar: counters.issuesByType.scrollbar || 0,
         layout: counters.issuesByType.layout || 0,
         centering: counters.issuesByType.centering || 0, // Disabled by default
+        "console-error": counters.issuesByType["console-error"] || 0,
       },
     },
   };

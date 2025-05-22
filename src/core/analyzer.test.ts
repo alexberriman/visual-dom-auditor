@@ -175,6 +175,7 @@ describe("validateResult", () => {
           scrollbar: 0,
           layout: 0,
           centering: 0,
+          "console-error": 0,
         },
       },
     };

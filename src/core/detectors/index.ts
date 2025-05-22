@@ -6,6 +6,7 @@ import containerOverflowDetector from "./container-overflow";
 import scrollbarDetector from "./scrollbar";
 import flexGridDetector from "./flex-grid";
 import centeringDetector from "./centering";
+import consoleErrorDetector from "./console-error";
 
 // Export individual detectors for direct usage
 export { OverlapDetector } from "./overlap";
@@ -15,6 +16,7 @@ export { ContainerOverflowDetector } from "./container-overflow";
 export { ScrollbarDetector } from "./scrollbar";
 export { FlexGridLayoutDetector } from "./flex-grid";
 export { CenteringDetector } from "./centering";
+export { ConsoleErrorDetector } from "./console-error";
 
 // Export the default detector instances
 export const detectors: Record<string, Detector> = {
@@ -24,6 +26,7 @@ export const detectors: Record<string, Detector> = {
   "container-overflow": containerOverflowDetector,
   scrollbar: scrollbarDetector,
   "flex-grid": flexGridDetector,
+  "console-error": consoleErrorDetector,
   // Centering detector disabled by default due to high rate of false positives
   // Include it explicitly if needed: import { centeringDetector } from "./detectors";
   // centering: centeringDetector,

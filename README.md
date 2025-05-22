@@ -24,6 +24,7 @@
   - Container overflow issues
   - Unexpected scrollbars
   - Flex/Grid layout problems
+  - Console errors and warnings
   - Centering issues (disabled by default)
 - **📊 Structured Output:** Exports detailed reports in JSON format
 - **🔄 CI/CD Integration:** Easily integrates with GitHub Actions and other CI pipelines
@@ -173,6 +174,25 @@ Finds issues with flexible layouts, such as overflowing or squished flex/grid ch
 }
 ```
 
+### Console Error Detector
+
+Captures JavaScript errors and warnings that appear in the browser console, which often indicate broken functionality that can affect the user experience.
+
+```json
+{
+  "type": "console-error",
+  "level": "error",
+  "message": "Console Error: Uncaught TypeError: Cannot read property 'foo' of undefined (https://example.com/app.js:42:15)",
+  "severity": "critical",
+  "source": {
+    "url": "https://example.com/app.js",
+    "line": 42,
+    "column": 15
+  },
+  "stackTrace": "TypeError: Cannot read property 'foo' of undefined\n    at Object.doSomething (app.js:42:15)"
+}
+```
+
 ## 🔄 CI/CD Integration
 
 Visual DOM Auditor can be integrated into your continuous integration workflow:
@@ -228,7 +248,8 @@ The tool outputs a structured JSON report with the following format:
       "container-overflow": 0,
       "scrollbar": 0,
       "layout": 0,
-      "centering": 0
+      "centering": 0,
+      "console-error": 0
     }
   },
   "issues": [

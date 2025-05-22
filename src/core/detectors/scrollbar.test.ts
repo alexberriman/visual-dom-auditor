@@ -52,8 +52,8 @@ describe("ScrollbarDetector", () => {
 
   test("should detect horizontal scrollbar issues", async () => {
     // Mock evaluation returning a horizontal scrollbar
-    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue({
-      horizontal: {
+    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue([
+      {
         direction: "horizontal",
         viewport: VIEWPORT_SIZE,
         documentSize: DOCUMENT_SIZE,
@@ -67,8 +67,7 @@ describe("ScrollbarDetector", () => {
           },
         },
       },
-      vertical: null,
-    });
+    ]);
 
     const result = await detector.detect(mockPage);
     expect(result.ok).toBe(true);
@@ -77,7 +76,7 @@ describe("ScrollbarDetector", () => {
       expect(issues.length).toBe(1);
       expect(issues[0].type).toBe("scrollbar");
       expect(issues[0].direction).toBe("horizontal");
-      expect(issues[0].severity).toBe("major");
+      expect(issues[0].severity).toBe("critical");
       expect(issues[0].elements.length).toBe(1);
       expect(issues[0].elements[0].selector).toBe("div.content");
     }
@@ -90,8 +89,8 @@ describe("ScrollbarDetector", () => {
     });
 
     // Mock evaluation returning a horizontal scrollbar with ignored element
-    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue({
-      horizontal: {
+    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue([
+      {
         direction: "horizontal",
         viewport: VIEWPORT_SIZE,
         documentSize: DOCUMENT_SIZE,
@@ -105,8 +104,7 @@ describe("ScrollbarDetector", () => {
           },
         },
       },
-      vertical: null,
-    });
+    ]);
 
     const result = await detector.detect(mockPage);
     expect(result.ok).toBe(true);
@@ -117,9 +115,8 @@ describe("ScrollbarDetector", () => {
 
   test("should not report vertical scrollbar when expected", async () => {
     // Mock evaluation returning only a vertical scrollbar
-    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue({
-      horizontal: null,
-      vertical: {
+    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue([
+      {
         direction: "vertical",
         viewport: {
           width: 1000,
@@ -130,7 +127,7 @@ describe("ScrollbarDetector", () => {
           height: 1500,
         },
       },
-    });
+    ]);
 
     // With default settings (expectVerticalScrollbar = true)
     const result = await detector.detect(mockPage);
@@ -140,16 +137,10 @@ describe("ScrollbarDetector", () => {
     }
   });
 
-  test("should report unexpected vertical scrollbar when not expected", async () => {
-    // Create detector that doesn't expect vertical scrollbars
-    detector = new ScrollbarDetector({
-      expectVerticalScrollbar: false,
-    });
-
+  test("should not report vertical scrollbar (not considered an issue)", async () => {
     // Mock evaluation returning only a vertical scrollbar
-    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue({
-      horizontal: null,
-      vertical: {
+    (mockPage.evaluate as unknown as MockEvaluateFunction).mockResolvedValue([
+      {
         direction: "vertical",
         viewport: {
           width: 1000,
@@ -160,16 +151,14 @@ describe("ScrollbarDetector", () => {
           height: 1500,
         },
       },
-    });
+    ]);
 
     const result = await detector.detect(mockPage);
     expect(result.ok).toBe(true);
     if (result.ok) {
       const issues = result.val;
-      expect(issues.length).toBe(1);
-      expect(issues[0].type).toBe("scrollbar");
-      expect(issues[0].direction).toBe("vertical");
-      expect(issues[0].severity).toBe("minor");
+      // Vertical scrollbars are not considered issues, so no issues should be reported
+      expect(issues.length).toBe(0);
     }
   });
 

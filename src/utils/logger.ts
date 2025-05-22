@@ -53,7 +53,7 @@ export const error = (message: string, ...args: unknown[]): void => {
  * Timing utility for performance measurement
  * Takes a label and returns a function that, when called, logs the elapsed time
  */
-export const timer = (label: string) => {
+export const timer = (label: string): (() => number) => {
   const startTime = performance.now();
   return () => {
     const endTime = performance.now();
