@@ -25,7 +25,8 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck && npm run test",
     "lint-staged": "lint-staged",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "release": "npm run check && npm version patch && git push && git push --tags && echo '\n🎉 Release created! To publish to npm, run:\n   npm publish --access public\n'"
   },
   "repository": {
     "type": "git",
