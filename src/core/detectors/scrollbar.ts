@@ -31,111 +31,106 @@ interface ScrollbarInfo {
 }
 
 /**
- * Helper functions for scrollbar detection - defined outside for linting compliance
+ * DOM script to detect unexpected scrollbars and the elements causing them
+ * This function runs in the browser context, so all dependencies must be included
  */
-function isElementVisible(element: Element): boolean {
-  try {
-    const style = window.getComputedStyle(element);
-    return !(
-      style.display === "none" ||
-      style.visibility === "hidden" ||
-      style.opacity === "0" ||
-      parseFloat(style.opacity) === 0
-    );
-  } catch {
-    return false;
-  }
-}
-
-function getElementSelector(element: Element): string {
-  try {
-    if (element.id) {
-      return "#" + element.id;
+const detectScrollbarsScript = (): unknown => {
+  // Helper functions defined in browser context for page.evaluate
+  const isElementVisible = (element: Element): boolean => {
+    try {
+      const style = window.getComputedStyle(element);
+      return !(
+        style.display === "none" ||
+        style.visibility === "hidden" ||
+        style.opacity === "0" ||
+        parseFloat(style.opacity) === 0
+      );
+    } catch {
+      return false;
     }
-
-    let selector = element.tagName.toLowerCase();
-    if (element.className && typeof element.className === "string") {
-      const classes = element.className.trim().split(/\s+/).slice(0, 2);
-      if (classes.length > 0 && classes[0]) {
-        selector += "." + classes.join(".");
-      }
-    }
-
-    return selector;
-  } catch {
-    return element.tagName ? element.tagName.toLowerCase() : "unknown-element";
-  }
-}
-
-function detectCausingElement(scrollbar: {
-  direction: string;
-  viewport: { width: number; height: number };
-  documentSize: { width: number; height: number };
-  causingElement?: {
-    selector: string;
-    bounds: { x: number; y: number; width: number; height: number };
   };
-}): void {
-  try {
-    const viewportWidth = scrollbar.viewport.width;
-    const potentialCulprits: Array<{ element: Element; overhang: number }> = [];
-    const checkElements = [
-      "body > *",
-      ".container > *",
-      ".wrapper > *",
-      "main > *",
-      "#content > *",
-    ];
 
-    for (const selector of checkElements) {
-      try {
-        const elements = document.querySelectorAll(selector);
-        for (const element of Array.from(elements)) {
-          if (!isElementVisible(element)) continue;
+  const getElementSelector = (element: Element): string => {
+    try {
+      if (element.id) {
+        return "#" + element.id;
+      }
 
-          const rect = element.getBoundingClientRect();
-          const elementRight = rect.left + rect.width;
-
-          if (elementRight > viewportWidth && rect.width > 50) {
-            const overhang = elementRight - viewportWidth;
-            potentialCulprits.push({ element, overhang });
-          }
+      let selector = element.tagName.toLowerCase();
+      if (element.className && typeof element.className === "string") {
+        const classes = element.className.trim().split(/\s+/).slice(0, 2);
+        if (classes.length > 0 && classes[0]) {
+          selector += "." + classes.join(".");
         }
-      } catch {
-        continue;
       }
+
+      return selector;
+    } catch {
+      return element.tagName ? element.tagName.toLowerCase() : "unknown-element";
     }
-
-    if (potentialCulprits.length > 0) {
-      potentialCulprits.sort((a, b) => b.overhang - a.overhang);
-      const culprit = potentialCulprits[0];
-      const rect = culprit.element.getBoundingClientRect();
-
-      scrollbar.causingElement = {
-        selector: getElementSelector(culprit.element),
-        bounds: {
-          x: rect.left,
-          y: rect.top,
-          width: rect.width,
-          height: rect.height,
-        },
-      };
-    }
-  } catch {
-    // If detection fails, continue without causing element info
-  }
-}
-
-function checkScrollbarNecessity(): Array<{
-  direction: "horizontal" | "vertical";
-  viewport: { width: number; height: number };
-  documentSize: { width: number; height: number };
-  causingElement?: {
-    selector: string;
-    bounds: { x: number; y: number; width: number; height: number };
   };
-}> {
-  const scrollbars: Array<{
+
+  const detectCausingElement = (scrollbar: {
+    direction: string;
+    viewport: { width: number; height: number };
+    documentSize: { width: number; height: number };
+    causingElement?: {
+      selector: string;
+      bounds: { x: number; y: number; width: number; height: number };
+    };
+  }): void => {
+    try {
+      const viewportWidth = scrollbar.viewport.width;
+      const potentialCulprits: Array<{ element: Element; overhang: number }> = [];
+      const checkElements = [
+        "body > *",
+        ".container > *",
+        ".wrapper > *",
+        "main > *",
+        "#content > *",
+      ];
+
+      for (const selector of checkElements) {
+        try {
+          const elements = document.querySelectorAll(selector);
+          for (const element of Array.from(elements)) {
+            if (!isElementVisible(element)) continue;
+
+            const rect = element.getBoundingClientRect();
+            const elementRight = rect.left + rect.width;
+
+            if (elementRight > viewportWidth && rect.width > 50) {
+              const overhang = elementRight - viewportWidth;
+              potentialCulprits.push({ element, overhang });
+            }
+          }
+        } catch {
+          continue;
+        }
+      }
+
+      if (potentialCulprits.length > 0) {
+        potentialCulprits.sort((a, b) => b.overhang - a.overhang);
+        const culprit = potentialCulprits[0];
+        const rect = culprit.element.getBoundingClientRect();
+
+        scrollbar.causingElement = {
+          selector: getElementSelector(culprit.element),
+          bounds: {
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height,
+          },
+        };
+      }
+    } catch {
+      // If detection fails, continue without causing element info
+    }
+  };
+
+  // Main scrollbar detection logic
+  const checkScrollbars = (): Array<{
     direction: "horizontal" | "vertical";
     viewport: { width: number; height: number };
     documentSize: { width: number; height: number };
@@ -143,58 +138,63 @@ function checkScrollbarNecessity(): Array<{
       selector: string;
       bounds: { x: number; y: number; width: number; height: number };
     };
-  }> = [];
+  }> => {
+    const scrollbars: Array<{
+      direction: "horizontal" | "vertical";
+      viewport: { width: number; height: number };
+      documentSize: { width: number; height: number };
+      causingElement?: {
+        selector: string;
+        bounds: { x: number; y: number; width: number; height: number };
+      };
+    }> = [];
 
-  const viewport = {
-    width: window.innerWidth,
-    height: window.innerHeight,
+    const viewport = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+
+    const documentSize = {
+      width: Math.max(
+        document.documentElement.scrollWidth,
+        document.documentElement.offsetWidth,
+        document.documentElement.clientWidth,
+        document.body ? document.body.scrollWidth : 0,
+        document.body ? document.body.offsetWidth : 0
+      ),
+      height: Math.max(
+        document.documentElement.scrollHeight,
+        document.documentElement.offsetHeight,
+        document.documentElement.clientHeight,
+        document.body ? document.body.scrollHeight : 0,
+        document.body ? document.body.offsetHeight : 0
+      ),
+    };
+
+    if (documentSize.width > viewport.width) {
+      const horizontalScrollbar = {
+        direction: "horizontal" as const,
+        viewport,
+        documentSize,
+      };
+      detectCausingElement(horizontalScrollbar);
+      scrollbars.push(horizontalScrollbar);
+    }
+
+    if (documentSize.height > viewport.height + 100) {
+      const verticalScrollbar = {
+        direction: "vertical" as const,
+        viewport,
+        documentSize,
+      };
+      scrollbars.push(verticalScrollbar);
+    }
+
+    return scrollbars;
   };
 
-  const documentSize = {
-    width: Math.max(
-      document.documentElement.scrollWidth,
-      document.documentElement.offsetWidth,
-      document.documentElement.clientWidth,
-      document.body ? document.body.scrollWidth : 0,
-      document.body ? document.body.offsetWidth : 0
-    ),
-    height: Math.max(
-      document.documentElement.scrollHeight,
-      document.documentElement.offsetHeight,
-      document.documentElement.clientHeight,
-      document.body ? document.body.scrollHeight : 0,
-      document.body ? document.body.offsetHeight : 0
-    ),
-  };
-
-  if (documentSize.width > viewport.width) {
-    const horizontalScrollbar = {
-      direction: "horizontal" as const,
-      viewport,
-      documentSize,
-    };
-    detectCausingElement(horizontalScrollbar);
-    scrollbars.push(horizontalScrollbar);
-  }
-
-  if (documentSize.height > viewport.height + 100) {
-    const verticalScrollbar = {
-      direction: "vertical" as const,
-      viewport,
-      documentSize,
-    };
-    scrollbars.push(verticalScrollbar);
-  }
-
-  return scrollbars;
-}
-
-/**
- * DOM script to detect unexpected scrollbars and the elements causing them
- */
-const detectScrollbarsScript = (): unknown => {
   try {
-    return checkScrollbarNecessity();
+    return checkScrollbars();
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Unknown error during scrollbar detection",

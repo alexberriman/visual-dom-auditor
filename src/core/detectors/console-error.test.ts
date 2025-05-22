@@ -80,6 +80,79 @@ describe("ConsoleErrorDetector", () => {
     vi.clearAllMocks();
   });
 
+  describe("early listening and collecting", () => {
+    it("should capture console errors that occur during page navigation", async () => {
+      // Start listening early
+      detector.startListeningEarly(mockPage);
+
+      // Trigger errors (simulating page load errors)
+      const networkError = createMockConsoleMessage(
+        "error",
+        "GET https://example.com/missing.css net::ERR_ABORTED 404 (Not Found)",
+        "https://example.com/style.css",
+        1
+      );
+
+      mockPage._triggerEvent("console", networkError);
+
+      // Collect errors
+      const result = await detector.collectErrors(mockPage);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val).toHaveLength(1);
+        const issue = result.val[0];
+        expect(issue.type).toBe("console-error");
+        expect(issue.level).toBe("error");
+        expect(issue.severity).toBe("major"); // Network errors are major
+        expect(issue.message).toContain("404");
+      }
+    });
+
+    it("should handle multiple network errors during page load", async () => {
+      detector.startListeningEarly(mockPage);
+
+      // Trigger multiple 404 errors like those from the website
+      const errors = [
+        createMockConsoleMessage(
+          "error",
+          "GET https://www.fishvision.com/themes/fishvision/dist/fonts/slick.woff net::ERR_ABORTED 404 (Not Found)",
+          "https://www.fishvision.com/style.css",
+          1
+        ),
+        createMockConsoleMessage(
+          "error",
+          "GET https://www.fishvision.com/themes/fishvision/dist/ajax-loader.gif 404 (Not Found)",
+          "https://www.fishvision.com/style.css",
+          1
+        ),
+        createMockConsoleMessage(
+          "error",
+          "GET https://www.fishvision.com/themes/fishvision/dist/fonts/slick.ttf net::ERR_ABORTED 404 (Not Found)",
+          "https://www.fishvision.com/style.css",
+          1
+        ),
+      ];
+
+      errors.forEach((error) => {
+        mockPage._triggerEvent("console", error);
+      });
+
+      const result = await detector.collectErrors(mockPage);
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val).toHaveLength(3);
+        result.val.forEach((issue) => {
+          expect(issue.type).toBe("console-error");
+          expect(issue.level).toBe("error");
+          expect(issue.severity).toBe("major");
+          expect(issue.message).toContain("404");
+        });
+      }
+    });
+  });
+
   describe("detect", () => {
     it("should return empty array when no console messages", async () => {
       const result = await detector.detect(mockPage);
@@ -216,6 +289,27 @@ describe("ConsoleErrorDetector", () => {
       if (result.ok) {
         expect(result.val).toHaveLength(1);
         expect(result.val[0].message).toContain("Real error");
+      }
+    });
+
+    it("should not ignore 404 network errors by default", async () => {
+      const detectPromise = detector.detect(mockPage);
+
+      // Trigger a 404 network error similar to the real website issue
+      const networkError = createMockConsoleMessage(
+        "error",
+        "GET https://www.fishvision.com/themes/fishvision/dist/fonts/slick.woff net::ERR_ABORTED 404 (Not Found)"
+      );
+
+      mockPage._triggerEvent("console", networkError);
+
+      const result = await detectPromise;
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val).toHaveLength(1);
+        expect(result.val[0].message).toContain("404");
+        expect(result.val[0].severity).toBe("major");
       }
     });
 

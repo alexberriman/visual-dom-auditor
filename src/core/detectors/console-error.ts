@@ -220,16 +220,22 @@ export class ConsoleErrorDetector implements Detector {
   }
 
   /**
-   * Detect console errors and warnings on the page
+   * Start listening for console errors before page navigation
+   * This should be called before page.goto() to catch network errors during page load
    */
-  async detect(page: Page): Promise<Result<ConsoleErrorIssue[], ConsoleErrorDetectorError>> {
-    try {
-      // Start listening for console messages
-      this.startListening(page);
+  startListeningEarly(page: Page): void {
+    this.startListening(page);
+  }
 
-      // Wait a short time to collect initial console messages
-      // This catches errors that occur during page load
-      await page.waitForTimeout(1000);
+  /**
+   * Stop listening and return collected console errors
+   * This should be called after page navigation and stability checks are complete
+   */
+  async collectErrors(page: Page): Promise<Result<ConsoleErrorIssue[], ConsoleErrorDetectorError>> {
+    try {
+      // Wait a short time to collect any remaining console messages
+      // This catches errors that might occur after page load
+      await page.waitForTimeout(500);
 
       // Stop listening
       this.stopListening(page);
@@ -242,6 +248,29 @@ export class ConsoleErrorDetector implements Detector {
       issues.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
       return Ok(issues);
+    } catch (error) {
+      return Err({
+        message: "Failed to collect console errors",
+        cause: error,
+      });
+    }
+  }
+
+  /**
+   * Detect console errors and warnings on the page
+   * For backward compatibility - this method starts listening and collects errors
+   */
+  async detect(page: Page): Promise<Result<ConsoleErrorIssue[], ConsoleErrorDetectorError>> {
+    try {
+      // Start listening for console messages
+      this.startListening(page);
+
+      // Wait a short time to collect initial console messages
+      // This catches errors that occur during page load
+      await page.waitForTimeout(1000);
+
+      // Use the new collectErrors method
+      return await this.collectErrors(page);
     } catch (error) {
       return Err({
         message: "Failed to detect console errors",

@@ -1,6 +1,7 @@
 import { chromium, type Page, type Browser } from "playwright-core";
 import { Ok, Err, type Result } from "../types/ts-results";
 import type { Config } from "../types/config";
+import type { ConsoleErrorDetector } from "./detectors/console-error";
 
 type BrowserError = {
   message: string;
@@ -25,9 +26,18 @@ const launchBrowser = async (): Promise<Result<Browser, BrowserError>> => {
 /**
  * Open a new page and navigate to the specified URL
  */
-const openPage = async (browser: Browser, url: string): Promise<Result<Page, BrowserError>> => {
+const openPage = async (
+  browser: Browser,
+  url: string,
+  consoleDetector?: ConsoleErrorDetector
+): Promise<Result<Page, BrowserError>> => {
   try {
     const page = await browser.newPage();
+
+    // Start listening for console errors before navigation if detector provided
+    if (consoleDetector) {
+      consoleDetector.startListeningEarly(page);
+    }
 
     // Navigate to the URL and wait for the page to load
     const response = await page.goto(url, {
@@ -169,7 +179,8 @@ const waitForStability = async (page: Page): Promise<Result<void, BrowserError>>
  * 5. Waits for the page to be stable
  */
 export const preparePage = async (
-  config: Config
+  config: Config,
+  consoleDetector?: ConsoleErrorDetector
 ): Promise<Result<{ browser: Browser; page: Page }, BrowserError>> => {
   // Launch browser
   const browserResult = await launchBrowser();
@@ -179,8 +190,8 @@ export const preparePage = async (
 
   const browser = browserResult.val;
 
-  // Open page
-  const pageResult = await openPage(browser, config.url);
+  // Open page with console error detection
+  const pageResult = await openPage(browser, config.url, consoleDetector);
   if (pageResult.err) {
     await browser.close();
     return Err(pageResult.val);

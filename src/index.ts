@@ -43,7 +43,10 @@ const initializeIssueCounters = (): IssueCounters => {
 /**
  * Run all detectors on the page
  */
-const runDetectors = async (page: import("playwright-core").Page): Promise<IssueCounters> => {
+const runDetectors = async (
+  page: import("playwright-core").Page,
+  consoleDetector?: import("./core/detectors/console-error").ConsoleErrorDetector
+): Promise<IssueCounters> => {
   const counters = initializeIssueCounters();
 
   // Import individual detectors
@@ -52,7 +55,19 @@ const runDetectors = async (page: import("playwright-core").Page): Promise<Issue
   // Run each detector separately to prevent one failure from stopping everything
   for (const [name, detector] of Object.entries(detectors)) {
     try {
-      const result = await detector.detect(page);
+      let result;
+
+      // Handle console error detector specially if it was provided
+      if (name === "console-error" && consoleDetector) {
+        // Use the early-started console detector to collect errors
+        result = await consoleDetector.collectErrors(page);
+      } else if (name === "console-error" && !consoleDetector) {
+        // Skip the default console detector since we don't have the early-started one
+        continue;
+      } else {
+        // Run normal detector
+        result = await detector.detect(page);
+      }
 
       if (result.ok && result.val.length > 0) {
         // Add issues to our collection
@@ -160,8 +175,12 @@ const main = async (): Promise<number> => {
   const config = cliResult.val;
 
   try {
-    // Launch browser and prepare page
-    const prepareResult = await preparePage(config);
+    // Create a console error detector to capture errors during page load
+    const { ConsoleErrorDetector } = await import("./core/detectors/console-error");
+    const consoleDetector = new ConsoleErrorDetector();
+
+    // Launch browser and prepare page with console error detection
+    const prepareResult = await preparePage(config, consoleDetector);
 
     if (prepareResult.err) {
       console.error(`Error: ${prepareResult.val.message}`);
@@ -172,7 +191,7 @@ const main = async (): Promise<number> => {
 
     try {
       // Run all detectors and collect results
-      const counters = await runDetectors(page);
+      const counters = await runDetectors(page, consoleDetector);
 
       // Create audit result
       const auditResult = createAuditResult(config, counters);
