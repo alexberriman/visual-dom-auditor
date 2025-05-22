@@ -139,9 +139,9 @@ export type Issue =
   | ConsoleErrorIssue;
 
 /**
- * Audit result
+ * Single URL audit result
  */
-export type AuditResult = {
+export type SingleUrlAuditResult = {
   readonly url: string;
   readonly timestamp: string;
   readonly viewport: {
@@ -157,3 +157,30 @@ export type AuditResult = {
     readonly issuesByType: Record<IssueType, number>;
   };
 };
+
+/**
+ * Multi-URL audit result
+ */
+export type MultiUrlAuditResult = {
+  readonly timestamp: string;
+  readonly viewport: {
+    readonly width: number;
+    readonly height: number;
+  };
+  readonly results: SingleUrlAuditResult[];
+  readonly summary: {
+    readonly totalUrls: number;
+    readonly urlsWithIssues: number;
+    readonly totalIssuesFound: number;
+    readonly criticalIssues: number;
+    readonly majorIssues: number;
+    readonly minorIssues: number;
+    readonly issuesByType: Record<IssueType, number>;
+  };
+  readonly exitedEarly?: boolean;
+};
+
+/**
+ * Audit result (backwards compatibility)
+ */
+export type AuditResult = SingleUrlAuditResult | MultiUrlAuditResult;

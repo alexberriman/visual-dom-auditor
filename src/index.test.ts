@@ -15,14 +15,43 @@ vi.mock("./core/browser", () => ({
 }));
 
 vi.mock("./core/analyzer", () => ({
-  analyzePage: vi.fn(),
   validateResult: vi.fn(),
+}));
+
+// Mock node:fs promises
+vi.mock("node:fs", () => ({
+  promises: {
+    writeFile: vi.fn(),
+    mkdir: vi.fn(),
+  },
+}));
+
+// Mock playwright-core
+vi.mock("playwright-core", () => ({
+  chromium: {
+    launch: vi.fn(),
+  },
+}));
+
+// Mock detectors
+vi.mock("./core/detectors/console-error", () => ({
+  ConsoleErrorDetector: vi.fn().mockImplementation(() => ({
+    startListeningEarly: vi.fn(),
+    collectErrors: vi.fn().mockResolvedValue({
+      ok: true,
+      val: [],
+    }),
+  })),
+}));
+
+vi.mock("./core/detectors", () => ({
+  detectors: {},
 }));
 
 // Import the mocked modules
 import { parseCli } from "./cli";
 import { preparePage, closeBrowser } from "./core/browser";
-import { analyzePage, validateResult } from "./core/analyzer";
+import { validateResult } from "./core/analyzer";
 
 describe("main", () => {
   const originalConsoleLog = console.log;
@@ -48,9 +77,10 @@ describe("main", () => {
 
   it("should return 0 when CLI parsing succeeds", async () => {
     const mockConfig = {
-      url: "https://example.com",
+      urls: ["https://example.com"],
       viewport: { width: 1920, height: 1080 },
       format: "json" as const,
+      exitEarly: false,
     };
 
     // Mock successful CLI parsing
@@ -59,31 +89,7 @@ describe("main", () => {
     // Mock successful browser preparation
     vi.mocked(preparePage).mockResolvedValue(Ok({ browser: {} as Browser, page: {} as Page }));
 
-    // Mock successful page analysis
-    vi.mocked(analyzePage).mockResolvedValue(
-      Ok({
-        url: mockConfig.url,
-        timestamp: "2023-01-01T00:00:00.000Z",
-        viewport: mockConfig.viewport,
-        issues: [],
-        metadata: {
-          totalIssuesFound: 0,
-          criticalIssues: 0,
-          majorIssues: 0,
-          minorIssues: 0,
-          issuesByType: {
-            overlap: 0,
-            padding: 0,
-            spacing: 0,
-            "container-overflow": 0,
-            scrollbar: 0,
-            layout: 0,
-            centering: 0,
-            "console-error": 0,
-          },
-        },
-      })
-    );
+    // Since we no longer use analyzePage in the main function, we don't need to mock it
 
     // Mock successful result validation
     vi.mocked(validateResult).mockReturnValue(true);

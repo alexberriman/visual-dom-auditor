@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { analyzePage, validateResult, type Detector } from "./analyzer";
 import { Ok, Err } from "../types/ts-results";
-import type { Issue, OverlapIssue, AuditResult } from "../types/issues";
+import type {
+  Issue,
+  OverlapIssue,
+  SingleUrlAuditResult,
+  MultiUrlAuditResult,
+} from "../types/issues";
 import type { Page } from "playwright-core";
 import type { Config } from "../types/config";
 
@@ -28,12 +33,13 @@ const TEST_URL = "https://example.com";
 // Create a mock config
 const createMockConfig = (): Config => {
   return {
-    url: TEST_URL,
+    urls: [TEST_URL],
     viewport: {
       width: 1920,
       height: 1080,
     },
     format: "json",
+    exitEarly: false,
   };
 };
 
@@ -89,7 +95,10 @@ describe("analyzePage", () => {
     const detector2 = createMockDetector([]);
 
     // Act
-    const result = await analyzePage(mockPage, mockConfig, [detector1, detector2]);
+    const result = await analyzePage(mockPage, TEST_URL, mockConfig.viewport, [
+      detector1,
+      detector2,
+    ]);
 
     // Assert
     expect(result.ok).toBe(true);
@@ -109,7 +118,10 @@ describe("analyzePage", () => {
     const detector2 = createMockDetector([]);
 
     // Act
-    const result = await analyzePage(mockPage, mockConfig, [detector1, detector2]);
+    const result = await analyzePage(mockPage, TEST_URL, mockConfig.viewport, [
+      detector1,
+      detector2,
+    ]);
 
     // Assert
     expect(result.ok).toBe(false);
@@ -122,7 +134,7 @@ describe("analyzePage", () => {
 
   it("should handle empty detector list", async () => {
     // Act
-    const result = await analyzePage(mockPage, mockConfig, []);
+    const result = await analyzePage(mockPage, TEST_URL, mockConfig.viewport, []);
 
     // Assert
     expect(result.ok).toBe(true);
@@ -141,7 +153,7 @@ describe("analyzePage", () => {
     const detector = createMockDetector([criticalIssue, majorIssue, minorIssue]);
 
     // Act
-    const result = await analyzePage(mockPage, mockConfig, [detector]);
+    const result = await analyzePage(mockPage, TEST_URL, mockConfig.viewport, [detector]);
 
     // Assert
     expect(result.ok).toBe(true);
@@ -155,12 +167,69 @@ describe("analyzePage", () => {
 });
 
 describe("validateResult", () => {
-  it("should return true for valid results", () => {
-    // Arrange
-    const validResult = {
+  const mockViewport = { width: 1920, height: 1080 };
+  const mockTimestamp = "2024-01-01T00:00:00.000Z";
+
+  describe("single URL result validation", () => {
+    it("validates correct single URL result", () => {
+      const singleResult: SingleUrlAuditResult = {
+        url: TEST_URL,
+        timestamp: mockTimestamp,
+        viewport: mockViewport,
+        issues: [],
+        metadata: {
+          totalIssuesFound: 0,
+          criticalIssues: 0,
+          majorIssues: 0,
+          minorIssues: 0,
+          issuesByType: {
+            overlap: 0,
+            padding: 0,
+            spacing: 0,
+            "container-overflow": 0,
+            scrollbar: 0,
+            layout: 0,
+            centering: 0,
+            "console-error": 0,
+          },
+        },
+      };
+
+      expect(validateResult(singleResult)).toBe(true);
+    });
+
+    it("invalidates single URL result missing url", () => {
+      const invalidResult = {
+        timestamp: mockTimestamp,
+        viewport: mockViewport,
+        issues: [],
+        metadata: {
+          totalIssuesFound: 0,
+          criticalIssues: 0,
+          majorIssues: 0,
+          minorIssues: 0,
+          issuesByType: {
+            overlap: 0,
+            padding: 0,
+            spacing: 0,
+            "container-overflow": 0,
+            scrollbar: 0,
+            layout: 0,
+            centering: 0,
+            "console-error": 0,
+          },
+        },
+      } as unknown as SingleUrlAuditResult;
+
+      expect(validateResult(invalidResult)).toBe(false);
+    });
+  });
+
+  describe("multi-URL result validation", () => {
+    const mockSingleResult: SingleUrlAuditResult = {
       url: TEST_URL,
-      timestamp: new Date().toISOString(),
-      viewport: { width: 1920, height: 1080 },
+      timestamp: mockTimestamp,
+      viewport: mockViewport,
       issues: [],
       metadata: {
         totalIssuesFound: 0,
@@ -180,33 +249,71 @@ describe("validateResult", () => {
       },
     };
 
-    // Act
-    const result = validateResult(validResult);
+    it("validates correct multi-URL result", () => {
+      const multiResult: MultiUrlAuditResult = {
+        timestamp: mockTimestamp,
+        viewport: mockViewport,
+        results: [mockSingleResult],
+        summary: {
+          totalUrls: 1,
+          urlsWithIssues: 0,
+          totalIssuesFound: 0,
+          criticalIssues: 0,
+          majorIssues: 0,
+          minorIssues: 0,
+          issuesByType: {
+            overlap: 0,
+            padding: 0,
+            spacing: 0,
+            "container-overflow": 0,
+            scrollbar: 0,
+            layout: 0,
+            centering: 0,
+            "console-error": 0,
+          },
+        },
+      };
 
-    // Assert
-    expect(result).toBe(true);
-  });
+      expect(validateResult(multiResult)).toBe(true);
+    });
 
-  it("should return false for invalid results", () => {
-    // Arrange
-    const invalidResult = {
-      url: TEST_URL,
-      // Missing timestamp
-      viewport: { width: 1920, height: 1080 },
-      issues: [],
-      metadata: {
-        totalIssuesFound: 0,
-        criticalIssues: 0,
-        majorIssues: 0,
-        minorIssues: 0,
-        issuesByType: {},
-      },
-    };
+    it("validates multi-URL result with exitedEarly flag", () => {
+      const multiResult: MultiUrlAuditResult = {
+        timestamp: mockTimestamp,
+        viewport: mockViewport,
+        results: [mockSingleResult],
+        summary: {
+          totalUrls: 1,
+          urlsWithIssues: 0,
+          totalIssuesFound: 0,
+          criticalIssues: 0,
+          majorIssues: 0,
+          minorIssues: 0,
+          issuesByType: {
+            overlap: 0,
+            padding: 0,
+            spacing: 0,
+            "container-overflow": 0,
+            scrollbar: 0,
+            layout: 0,
+            centering: 0,
+            "console-error": 0,
+          },
+        },
+        exitedEarly: true,
+      };
 
-    // Act
-    const result = validateResult(invalidResult as unknown as AuditResult);
+      expect(validateResult(multiResult)).toBe(true);
+    });
 
-    // Assert
-    expect(result).toBe(false);
+    it("invalidates multi-URL result missing summary", () => {
+      const invalidResult = {
+        timestamp: mockTimestamp,
+        viewport: mockViewport,
+        results: [mockSingleResult],
+      } as MultiUrlAuditResult;
+
+      expect(validateResult(invalidResult)).toBe(false);
+    });
   });
 });

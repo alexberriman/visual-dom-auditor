@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 import { parseCli } from "./cli";
-import { preparePage, closeBrowser } from "./core/browser";
+import { preparePage, preparePageForUrl, closeBrowser } from "./core/browser";
 import { validateResult } from "./core/analyzer";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { chromium } from "playwright-core";
 // We'll dynamically import detectors in the main function
 
 /**
@@ -112,16 +113,17 @@ const processIssues = (
 };
 
 /**
- * Create audit result from issue counters
+ * Create single URL audit result from issue counters
  */
-const createAuditResult = (
-  config: import("./types/config").Config,
+const createSingleUrlAuditResult = (
+  url: string,
+  viewport: { width: number; height: number },
   counters: IssueCounters
-): import("./types/issues").AuditResult => {
+): import("./types/issues").SingleUrlAuditResult => {
   return {
-    url: config.url,
+    url,
     timestamp: new Date().toISOString(),
-    viewport: config.viewport,
+    viewport,
     issues: counters.allIssues,
     metadata: {
       totalIssuesFound: counters.allIssues.length,
@@ -139,6 +141,55 @@ const createAuditResult = (
         "console-error": counters.issuesByType["console-error"] || 0,
       },
     },
+  };
+};
+
+/**
+ * Check if a result contains critical issues
+ */
+const hasCriticalIssues = (counters: IssueCounters): boolean => {
+  return counters.criticalIssues > 0;
+};
+
+/**
+ * Create multi-URL audit result from individual results
+ */
+const createMultiUrlAuditResult = (
+  viewport: { width: number; height: number },
+  results: import("./types/issues").SingleUrlAuditResult[],
+  exitedEarly: boolean = false
+): import("./types/issues").MultiUrlAuditResult => {
+  const summary = {
+    totalUrls: results.length,
+    urlsWithIssues: results.filter((r) => r.metadata.totalIssuesFound > 0).length,
+    totalIssuesFound: results.reduce((sum, r) => sum + r.metadata.totalIssuesFound, 0),
+    criticalIssues: results.reduce((sum, r) => sum + r.metadata.criticalIssues, 0),
+    majorIssues: results.reduce((sum, r) => sum + r.metadata.majorIssues, 0),
+    minorIssues: results.reduce((sum, r) => sum + r.metadata.minorIssues, 0),
+    issuesByType: {
+      overlap: results.reduce((sum, r) => sum + r.metadata.issuesByType.overlap, 0),
+      padding: results.reduce((sum, r) => sum + r.metadata.issuesByType.padding, 0),
+      spacing: results.reduce((sum, r) => sum + r.metadata.issuesByType.spacing, 0),
+      "container-overflow": results.reduce(
+        (sum, r) => sum + r.metadata.issuesByType["container-overflow"],
+        0
+      ),
+      scrollbar: results.reduce((sum, r) => sum + r.metadata.issuesByType.scrollbar, 0),
+      layout: results.reduce((sum, r) => sum + r.metadata.issuesByType.layout, 0),
+      centering: results.reduce((sum, r) => sum + r.metadata.issuesByType.centering, 0),
+      "console-error": results.reduce(
+        (sum, r) => sum + r.metadata.issuesByType["console-error"],
+        0
+      ),
+    } as Record<import("./types/issues").IssueType, number>,
+  };
+
+  return {
+    timestamp: new Date().toISOString(),
+    viewport,
+    results,
+    summary,
+    ...(exitedEarly && { exitedEarly }),
   };
 };
 
@@ -175,47 +226,134 @@ const main = async (): Promise<number> => {
   const config = cliResult.val;
 
   try {
-    // Create a console error detector to capture errors during page load
-    const { ConsoleErrorDetector } = await import("./core/detectors/console-error");
-    const consoleDetector = new ConsoleErrorDetector();
-
-    // Launch browser and prepare page with console error detection
-    const prepareResult = await preparePage(config, consoleDetector);
-
-    if (prepareResult.err) {
-      console.error(`Error: ${prepareResult.val.message}`);
-      return 1;
+    // Handle single URL case (backwards compatibility)
+    if (config.urls.length === 1) {
+      return await processSingleUrl(config);
     }
 
-    const { browser, page } = prepareResult.val;
-
-    try {
-      // Run all detectors and collect results
-      const counters = await runDetectors(page, consoleDetector);
-
-      // Create audit result
-      const auditResult = createAuditResult(config, counters);
-
-      // Validate results
-      if (!validateResult(auditResult)) {
-        console.error("Error: Generated invalid results structure");
-        return 1;
-      }
-
-      // Output results
-      await outputResults(auditResult, config.savePath);
-
-      return 0;
-    } finally {
-      // Always close the browser
-      await closeBrowser(browser);
-    }
+    // Handle multiple URLs case
+    return await processMultipleUrls(config);
   } catch (error) {
     console.error(
       "An unexpected error occurred:",
       error instanceof Error ? error.message : String(error)
     );
     return 1;
+  }
+};
+
+/**
+ * Process a single URL (backwards compatibility)
+ */
+const processSingleUrl = async (config: import("./types/config").Config): Promise<number> => {
+  // Create a console error detector to capture errors during page load
+  const { ConsoleErrorDetector } = await import("./core/detectors/console-error");
+  const consoleDetector = new ConsoleErrorDetector();
+
+  // Launch browser and prepare page with console error detection
+  const prepareResult = await preparePage(config, consoleDetector);
+
+  if (prepareResult.err) {
+    console.error(`Error: ${prepareResult.val.message}`);
+    return 1;
+  }
+
+  const { browser, page } = prepareResult.val;
+
+  try {
+    // Run all detectors and collect results
+    const counters = await runDetectors(page, consoleDetector);
+
+    // Create audit result
+    const auditResult = createSingleUrlAuditResult(config.urls[0], config.viewport, counters);
+
+    // Validate results
+    if (!validateResult(auditResult)) {
+      console.error("Error: Generated invalid results structure");
+      return 1;
+    }
+
+    // Output results
+    await outputResults(auditResult, config.savePath);
+
+    return 0;
+  } finally {
+    // Always close the browser
+    await closeBrowser(browser);
+  }
+};
+
+/**
+ * Process multiple URLs sequentially with shared browser instance
+ */
+const processMultipleUrls = async (config: import("./types/config").Config): Promise<number> => {
+  // Launch browser once for all URLs
+  const browser = await chromium.launch({ headless: true });
+  const results: import("./types/issues").SingleUrlAuditResult[] = [];
+  let exitedEarly = false;
+
+  try {
+    // Create a console error detector
+    const { ConsoleErrorDetector } = await import("./core/detectors/console-error");
+
+    // Process each URL sequentially
+    for (const url of config.urls) {
+      const consoleDetector = new ConsoleErrorDetector();
+
+      // Prepare page for this URL
+      const pageResult = await preparePageForUrl(browser, url, config.viewport, consoleDetector);
+
+      if (pageResult.err) {
+        console.error(`Error processing ${url}: ${pageResult.val.message}`);
+
+        // If exit early is enabled, stop processing and return results
+        if (config.exitEarly) {
+          exitedEarly = true;
+          break;
+        }
+
+        // Otherwise, continue with next URL
+        continue;
+      }
+
+      const page = pageResult.val;
+
+      try {
+        // Run all detectors and collect results
+        const counters = await runDetectors(page, consoleDetector);
+
+        // Create audit result for this URL
+        const urlResult = createSingleUrlAuditResult(url, config.viewport, counters);
+        results.push(urlResult);
+
+        // Check for early exit on critical issues
+        if (config.exitEarly && hasCriticalIssues(counters)) {
+          exitedEarly = true;
+          await page.close();
+          break;
+        }
+      } finally {
+        // Close the page but keep browser open for next URL
+        await page.close();
+      }
+    }
+
+    // Create multi-URL audit result
+    const multiUrlResult = createMultiUrlAuditResult(config.viewport, results, exitedEarly);
+
+    // Validate results
+    if (!validateResult(multiUrlResult)) {
+      console.error("Error: Generated invalid results structure");
+      return 1;
+    }
+
+    // Output results
+    await outputResults(multiUrlResult, config.savePath);
+
+    return 0;
+  } finally {
+    // Always close the browser
+    await closeBrowser(browser);
   }
 };
 

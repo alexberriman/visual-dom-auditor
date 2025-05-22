@@ -13,6 +13,44 @@ type ParseCliError = {
 };
 
 /**
+ * Validates URL input from command line options
+ */
+const validateUrls = (options: {
+  url?: string;
+  urls?: string[];
+}): Result<string[], ParseCliError> => {
+  const urls: string[] = [];
+
+  if (options.url && options.urls) {
+    return Err({
+      message:
+        "Cannot specify both --url and --urls. Use --url for single URL or --urls for multiple URLs",
+    });
+  }
+
+  if (!options.url && !options.urls) {
+    return Err({ message: "Either --url or --urls is required" });
+  }
+
+  if (options.url) {
+    urls.push(options.url);
+  } else if (options.urls) {
+    urls.push(...options.urls);
+  }
+
+  // Validate all URLs
+  for (const url of urls) {
+    try {
+      new globalThis.URL(url);
+    } catch {
+      return Err({ message: `Invalid URL: ${url}` });
+    }
+  }
+
+  return Ok(urls);
+};
+
+/**
  * Parses and validates command line arguments
  */
 export const parseCli = (): Result<Config, ParseCliError> => {
@@ -24,30 +62,27 @@ export const parseCli = (): Result<Config, ParseCliError> => {
     .version("0.1.0");
 
   program
-    .requiredOption("--url <url>", "URL to analyze")
+    .option("--url <url>", "URL to analyze (use this for single URL)")
+    .option("--urls <urls...>", "Multiple URLs to analyze")
     .option(
       "--viewport <viewport>",
       "Viewport size (desktop, tablet, mobile, or custom widthxheight)",
       "desktop"
     )
     .option("--format <format>", "Output format", "json")
-    .option("--save <path>", "Save output to file");
+    .option("--save <path>", "Save output to file")
+    .option("--exit-early", "Exit on first critical error found");
 
   program.parse();
 
   const options = program.opts();
 
-  // Validate URL
-  if (!options.url) {
-    return Err({ message: "URL is required" });
+  // Validate URL input
+  const urlValidationResult = validateUrls(options);
+  if (urlValidationResult.err) {
+    return urlValidationResult;
   }
-
-  try {
-    // Use globalThis.URL to avoid the no-undef error
-    new globalThis.URL(options.url);
-  } catch {
-    return Err({ message: `Invalid URL: ${options.url}` });
-  }
+  const urls = urlValidationResult.val;
 
   // Process viewport
   let viewportWidth = 1920;
@@ -78,12 +113,13 @@ export const parseCli = (): Result<Config, ParseCliError> => {
   }
 
   return Ok({
-    url: options.url,
+    urls,
     viewport: {
       width: viewportWidth,
       height: viewportHeight,
     },
     format: options.format || "json",
     savePath: options.save,
+    exitEarly: Boolean(options.exitEarly),
   });
 };

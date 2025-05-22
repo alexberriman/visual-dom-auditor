@@ -1,7 +1,12 @@
 import { type Page } from "playwright-core";
 import { Ok, Err, type Result } from "../types/ts-results";
-import type { AuditResult, Issue, IssueType } from "../types/issues";
-import type { Config } from "../types/config";
+import type {
+  AuditResult,
+  SingleUrlAuditResult,
+  MultiUrlAuditResult,
+  Issue,
+  IssueType,
+} from "../types/issues";
 
 /**
  * Error type for analyzer operations
@@ -27,15 +32,17 @@ export interface Detector {
  * Analyze a page for layout issues
  *
  * @param page The prepared Playwright page to analyze
- * @param config The CLI configuration
+ * @param url The URL being analyzed
+ * @param viewport The viewport configuration
  * @param detectors The detector modules to run
  * @returns A result containing the audit result or an error
  */
 export const analyzePage = async (
   page: Page,
-  config: Config,
+  url: string,
+  viewport: { width: number; height: number },
   detectors: Detector[]
-): Promise<Result<AuditResult, AnalyzerError>> => {
+): Promise<Result<SingleUrlAuditResult, AnalyzerError>> => {
   try {
     const allIssues: Issue[] = [];
 
@@ -74,10 +81,10 @@ export const analyzePage = async (
     }
 
     // Create the audit result
-    const auditResult: AuditResult = {
-      url: config.url,
+    const auditResult: SingleUrlAuditResult = {
+      url,
       timestamp: new Date().toISOString(),
-      viewport: config.viewport,
+      viewport,
       issues: allIssues,
       metadata: {
         totalIssuesFound: allIssues.length,
@@ -98,6 +105,32 @@ export const analyzePage = async (
 };
 
 /**
+ * Validate single URL audit result
+ */
+const validateSingleUrlResult = (result: SingleUrlAuditResult): boolean => {
+  return !(
+    !result.url ||
+    !result.timestamp ||
+    !result.viewport ||
+    !Array.isArray(result.issues) ||
+    !result.metadata
+  );
+};
+
+/**
+ * Validate multi-URL audit result
+ */
+const validateMultiUrlResult = (result: MultiUrlAuditResult): boolean => {
+  return !(
+    !result.timestamp ||
+    !result.viewport ||
+    !Array.isArray(result.results) ||
+    !result.summary ||
+    result.results.some((r) => !validateSingleUrlResult(r))
+  );
+};
+
+/**
  * Validate the audit result
  *
  * This function validates that the audit result has the expected structure.
@@ -107,12 +140,15 @@ export const analyzePage = async (
  * @returns True if valid, false otherwise
  */
 export const validateResult = (result: AuditResult): boolean => {
-  // Basic validation - in a real implementation, this would use Zod
-  return !(
-    !result.url ||
-    !result.timestamp ||
-    !result.viewport ||
-    !Array.isArray(result.issues) ||
-    !result.metadata
-  );
+  // Check if it's a single URL result (has url property)
+  if ("url" in result) {
+    return validateSingleUrlResult(result as SingleUrlAuditResult);
+  }
+
+  // Otherwise, it's a multi-URL result (has results property)
+  if ("results" in result) {
+    return validateMultiUrlResult(result as MultiUrlAuditResult);
+  }
+
+  return false;
 };

@@ -15,10 +15,11 @@ export type OutputFormat = "json";
  * CLI configuration
  */
 export type Config = {
-  readonly url: string;
+  readonly urls: readonly string[];
   readonly viewport: Viewport;
   readonly format: OutputFormat;
   readonly savePath?: string;
+  readonly exitEarly: boolean;
 };
 
 /**

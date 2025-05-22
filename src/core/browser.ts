@@ -170,13 +170,53 @@ const waitForStability = async (page: Page): Promise<Result<void, BrowserError>>
 };
 
 /**
- * Prepares a browser page for analysis
+ * Prepares a browser page for analysis with a specific URL
  *
- * 1. Launches a headless browser
- * 2. Opens a page with the specified URL
- * 3. Sets the viewport size
- * 4. Scrolls the page to trigger lazy-loaded elements
- * 5. Waits for the page to be stable
+ * 1. Opens a page with the specified URL using existing browser
+ * 2. Sets the viewport size
+ * 3. Scrolls the page to trigger lazy-loaded elements
+ * 4. Waits for the page to be stable
+ */
+export const preparePageForUrl = async (
+  browser: Browser,
+  url: string,
+  viewport: { width: number; height: number },
+  consoleDetector?: ConsoleErrorDetector
+): Promise<Result<Page, BrowserError>> => {
+  // Open page with console error detection
+  const pageResult = await openPage(browser, url, consoleDetector);
+  if (pageResult.err) {
+    return Err(pageResult.val);
+  }
+
+  const page = pageResult.val;
+
+  // Set viewport
+  const viewportResult = await setViewport(page, viewport.width, viewport.height);
+  if (viewportResult.err) {
+    await page.close();
+    return Err(viewportResult.val);
+  }
+
+  // Scroll page
+  const scrollResult = await scrollPage(page);
+  if (scrollResult.err) {
+    await page.close();
+    return Err(scrollResult.val);
+  }
+
+  // Wait for stability
+  const stabilityResult = await waitForStability(page);
+  if (stabilityResult.err) {
+    await page.close();
+    return Err(stabilityResult.val);
+  }
+
+  return Ok(page);
+};
+
+/**
+ * Prepares a browser page for analysis (legacy single URL support)
  */
 export const preparePage = async (
   config: Config,
@@ -190,37 +230,20 @@ export const preparePage = async (
 
   const browser = browserResult.val;
 
-  // Open page with console error detection
-  const pageResult = await openPage(browser, config.url, consoleDetector);
+  // Use the first URL for backwards compatibility
+  const url = config.urls[0];
+  if (!url) {
+    await browser.close();
+    return Err({ message: "No URLs provided in config" });
+  }
+
+  const pageResult = await preparePageForUrl(browser, url, config.viewport, consoleDetector);
   if (pageResult.err) {
     await browser.close();
     return Err(pageResult.val);
   }
 
-  const page = pageResult.val;
-
-  // Set viewport
-  const viewportResult = await setViewport(page, config.viewport.width, config.viewport.height);
-  if (viewportResult.err) {
-    await browser.close();
-    return Err(viewportResult.val);
-  }
-
-  // Scroll page
-  const scrollResult = await scrollPage(page);
-  if (scrollResult.err) {
-    await browser.close();
-    return Err(scrollResult.val);
-  }
-
-  // Wait for stability
-  const stabilityResult = await waitForStability(page);
-  if (stabilityResult.err) {
-    await browser.close();
-    return Err(stabilityResult.val);
-  }
-
-  return Ok({ browser, page });
+  return Ok({ browser, page: pageResult.val });
 };
 
 /**

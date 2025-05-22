@@ -36,12 +36,13 @@ vi.mock("playwright-core", () => {
 
 describe("browser", () => {
   const mockConfig = {
-    url: "https://example.com",
+    urls: ["https://example.com"],
     viewport: {
       width: 1920,
       height: 1080,
     },
     format: "json" as const,
+    exitEarly: false,
   };
 
   beforeEach(() => {
@@ -60,7 +61,7 @@ describe("browser", () => {
         expect(browser).toBeDefined();
         expect(page).toBeDefined();
 
-        expect(page.goto).toHaveBeenCalledWith(mockConfig.url, {
+        expect(page.goto).toHaveBeenCalledWith(mockConfig.urls[0], {
           waitUntil: "networkidle",
           timeout: 30_000,
         });

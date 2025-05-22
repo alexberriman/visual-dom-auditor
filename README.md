@@ -42,8 +42,11 @@ npx @alexberriman/visual-dom-auditor --url https://example.com
 ## 📋 Usage
 
 ```bash
-# If installed globally
+# Single URL analysis
 visual-dom-auditor --url https://example.com
+
+# Multiple URLs analysis
+visual-dom-auditor --urls https://example.com https://test.com https://demo.com
 
 # Without installing (recommended)
 npx @alexberriman/visual-dom-auditor --url https://example.com
@@ -53,25 +56,40 @@ npx @alexberriman/visual-dom-auditor --url https://example.com
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--url <url>` | URL of the website to analyze (required) | - |
+| `--url <url>` | Single URL to analyze | - |
+| `--urls <urls...>` | Multiple URLs to analyze sequentially | - |
 | `--viewport <viewport>` | Viewport size: `desktop`, `tablet`, `mobile`, or custom `widthxheight` (e.g., `1366x768`) | `desktop` (1920x1080) |
 | `--format <format>` | Output format | `json` |
 | `--save <path>` | Save output to file (e.g., `./reports/audit.json`) | - |
+| `--exit-early` | Exit immediately when the first critical error is found | `false` |
+
+**Note:** Use either `--url` for single URL analysis or `--urls` for multiple URLs, but not both.
 
 ### Examples
 
 ```bash
-# Basic usage (outputs to console)
+# Basic single URL usage (outputs to console)
 npx @alexberriman/visual-dom-auditor --url https://example.com
 
-# Test with a mobile viewport
-npx @alexberriman/visual-dom-auditor --url https://example.com --viewport mobile
+# Test multiple URLs with mobile viewport
+npx @alexberriman/visual-dom-auditor --urls https://example.com https://test.com --viewport mobile
 
-# Use custom viewport dimensions
-npx @alexberriman/visual-dom-auditor --url https://example.com --viewport 1366x768
+# Use custom viewport dimensions for multiple URLs
+npx @alexberriman/visual-dom-auditor --urls https://example.com https://test.com --viewport 1366x768
 
 # Save results to a file
 npx @alexberriman/visual-dom-auditor --url https://example.com --save ./reports/audit.json
+
+# Test multiple URLs with early exit on critical errors
+npx @alexberriman/visual-dom-auditor --urls https://example.com https://test.com --exit-early
+
+# Performance-optimized: Test many URLs sequentially with shared browser instance
+npx @alexberriman/visual-dom-auditor --urls \
+  https://example.com \
+  https://example.com/about \
+  https://example.com/contact \
+  https://example.com/products \
+  --save ./reports/site-audit.json
 ```
 
 ## 🧪 Detection Types
@@ -219,7 +237,7 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install chromium
       - name: Run visual audit
-        run: npx @alexberriman/visual-dom-auditor --url https://staging.example.com --save report.json
+        run: npx @alexberriman/visual-dom-auditor --urls https://staging.example.com https://staging.example.com/about https://staging.example.com/contact --save report.json --exit-early
       - name: Archive results
         uses: actions/upload-artifact@v3
         with:
@@ -229,14 +247,28 @@ jobs:
 
 ## 📊 Interpreting Results
 
-The tool outputs a structured JSON report with the following format:
+The tool outputs structured JSON reports. The format differs depending on whether you're analyzing a single URL or multiple URLs.
+
+### Single URL Result Format
 
 ```json
 {
+  "url": "https://example.com",
+  "timestamp": "2023-05-20T10:15:30Z",
+  "viewport": {"width": 1920, "height": 1080},
+  "issues": [
+    {
+      "type": "overlap",
+      "elements": [
+        {"selector": "#header-logo", "description": "Site logo"},
+        {"selector": "#nav-menu", "description": "Navigation menu"}
+      ],
+      "severity": "critical",
+      "position": {"x": 150, "y": 50},
+      "overlapPercentage": 75
+    }
+  ],
   "metadata": {
-    "url": "https://example.com",
-    "timestamp": "2023-05-20T10:15:30Z",
-    "viewport": {"width": 1920, "height": 1080},
     "totalIssuesFound": 3,
     "criticalIssues": 1,
     "majorIssues": 1,
@@ -251,22 +283,66 @@ The tool outputs a structured JSON report with the following format:
       "centering": 0,
       "console-error": 0
     }
-  },
-  "issues": [
-    {
-      "type": "overlap",
-      "elements": [
-        {"selector": "#header-logo", "description": "Site logo"},
-        {"selector": "#nav-menu", "description": "Navigation menu"}
-      ],
-      "severity": "critical",
-      "position": {"x": 150, "y": 50},
-      "overlapPercentage": 75
-    },
-    // Additional issues...
-  ]
+  }
 }
 ```
+
+### Multiple URL Result Format
+
+```json
+{
+  "timestamp": "2023-05-20T10:15:30Z",
+  "viewport": {"width": 1920, "height": 1080},
+  "results": [
+    {
+      "url": "https://example.com",
+      "timestamp": "2023-05-20T10:15:30Z",
+      "viewport": {"width": 1920, "height": 1080},
+      "issues": [/* individual URL issues */],
+      "metadata": {
+        "totalIssuesFound": 2,
+        "criticalIssues": 1,
+        "majorIssues": 1,
+        "minorIssues": 0,
+        "issuesByType": {/* counts for this URL */}
+      }
+    },
+    {
+      "url": "https://test.com",
+      "timestamp": "2023-05-20T10:15:35Z",
+      "viewport": {"width": 1920, "height": 1080},
+      "issues": [/* individual URL issues */],
+      "metadata": {/* metadata for this URL */}
+    }
+  ],
+  "summary": {
+    "totalUrls": 2,
+    "urlsWithIssues": 2,
+    "totalIssuesFound": 5,
+    "criticalIssues": 2,
+    "majorIssues": 2,
+    "minorIssues": 1,
+    "issuesByType": {
+      "overlap": 2,
+      "padding": 1,
+      "spacing": 2,
+      "container-overflow": 0,
+      "scrollbar": 0,
+      "layout": 0,
+      "centering": 0,
+      "console-error": 0
+    }
+  },
+  "exitedEarly": false
+}
+```
+
+**Key Benefits of Multiple URL Testing:**
+
+- **Performance**: Reuses the same browser instance across all URLs, significantly faster than running separate audits
+- **Comprehensive reporting**: Get aggregated statistics across your entire site
+- **Early exit**: Use `--exit-early` to stop immediately when critical issues are found
+- **Sequential processing**: URLs are processed one by one to ensure consistent results
 
 
 ## ⚙️ Advanced Configuration
