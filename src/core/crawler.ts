@@ -107,6 +107,8 @@ export class CrawlerEngine {
         // Wait for at least one task to complete before continuing
         if (processingTasks.length > 0) {
           await Promise.race(processingTasks);
+          // Give time for any newly discovered URLs to be enqueued
+          await this.delay(50);
         } else {
           // No tasks to process, wait a bit and check again
           await this.delay(100);

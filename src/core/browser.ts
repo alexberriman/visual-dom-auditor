@@ -170,8 +170,30 @@ const waitForStability = async (
     // Wait for network activity to complete
     await page.waitForLoadState("networkidle");
 
-    // Wait for any JavaScript to finish executing
-    await page.waitForTimeout(500);
+    // Wait for any JavaScript to finish executing (longer for SPAs)
+    await page.waitForTimeout(1000);
+
+    // For SPAs, wait for content to be rendered by checking if body has meaningful content
+    let retries = 0;
+    const maxRetries = 10;
+    while (retries < maxRetries) {
+      const hasContent = await page.evaluate(() => {
+        const body = document.body;
+        if (!body) return false;
+
+        // Check if body has more than just loading indicators
+        const text = body.innerText?.trim() || "";
+        const hasLinks = document.querySelectorAll("a[href]").length > 0;
+        const hasContent = text.length > 100 || hasLinks;
+
+        return hasContent;
+      });
+
+      if (hasContent) break;
+
+      retries++;
+      await page.waitForTimeout(500);
+    }
 
     // Wait for animations to complete
     // Most modern animation libraries (including Framer Motion) use CSS transitions/animations
@@ -215,6 +237,37 @@ const waitForStability = async (
 
     // Final short wait to ensure everything is settled
     await page.waitForTimeout(300);
+
+    // Log HTML content in debug mode for debugging purposes
+    if (process.env.LOG_LEVEL === "debug" || process.argv.includes("--verbose")) {
+      try {
+        const htmlContent = await page.content();
+        const bodyContent = await page.evaluate(
+          () => document.body?.innerHTML || "No body content"
+        );
+        console.log(
+          `\n🔍 [DEBUG] Page HTML content for analysis (${new URL(page.url()).pathname}):`
+        );
+        console.log(`📄 [DEBUG] Full HTML length: ${htmlContent.length} characters`);
+        console.log(`📄 [DEBUG] Body HTML length: ${bodyContent.length} characters`);
+        console.log(
+          `📄 [DEBUG] Body content preview (first 1000 chars):\n${bodyContent.slice(0, 1000)}${bodyContent.length > 1000 ? "..." : ""}`
+        );
+
+        // Also log link information for crawling debug
+        const links = await page.evaluate(() => {
+          const anchors = Array.from(document.querySelectorAll("a[href]"));
+          return anchors.map((a) => ({
+            href: a.getAttribute("href"),
+            text: a.textContent?.trim() || "",
+            isVisible: (a as HTMLElement).offsetParent !== null,
+          }));
+        });
+        console.log(`🔗 [DEBUG] Found ${links.length} links on page:`, links.slice(0, 10));
+      } catch (error) {
+        console.log(`⚠️ [DEBUG] Failed to log HTML content:`, error);
+      }
+    }
 
     contextSpinner.succeed("✓ Page is ready for analysis");
     return Ok(undefined);

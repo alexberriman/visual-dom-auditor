@@ -175,14 +175,13 @@ describe("CrawlerEngine", () => {
 
       expect(result.ok).toBe(true);
       if (result.ok) {
-        // The crawler will process the start URL + up to 2 more pages (total 3 max)
-        // But since we only mock discovering links from the first page, it might only process 2
-        expect(result.val.crawlMetadata.successfulPages).toBeLessThanOrEqual(3);
-        expect(result.val.crawlMetadata.successfulPages).toBeGreaterThanOrEqual(1);
+        // The crawler should process exactly the max pages limit (3)
+        expect(result.val.crawlMetadata.successfulPages).toBe(3);
         // Some pages should be skipped due to the limit
         expect(result.val.crawlMetadata.totalPagesDiscovered).toBeGreaterThanOrEqual(
           result.val.crawlMetadata.successfulPages
         );
+        expect(result.val.crawlMetadata.pagesSkipped).toBeGreaterThan(0);
       }
     });
 

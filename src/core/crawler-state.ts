@@ -60,7 +60,8 @@ export class CrawlerStateManager {
       }
 
       // Check page limit
-      if (this.getTotalPagesProcessedOrQueued() >= this.config.maxPages) {
+      const currentTotal = this.getTotalPagesProcessedOrQueued();
+      if (currentTotal >= this.config.maxPages) {
         this.state.pagesSkipped++;
         return Ok(false); // Exceeds max pages
       }
@@ -99,6 +100,11 @@ export class CrawlerStateManager {
       // Check if we can process more pages concurrently
       if (this.state.processing.size >= this.config.maxThreads) {
         return Ok(null); // Too many concurrent processes
+      }
+
+      // Check if we would exceed the max pages limit
+      if (this.state.results.length + this.state.processing.size >= this.config.maxPages) {
+        return Ok(null); // Would exceed max pages limit
       }
 
       const item = this.state.queue.shift();
@@ -168,7 +174,7 @@ export class CrawlerStateManager {
     return (
       !this.state.stopped &&
       (this.state.queue.length > 0 || this.state.processing.size > 0) &&
-      this.getTotalPagesProcessedOrQueued() < this.config.maxPages
+      this.state.results.length < this.config.maxPages
     );
   }
 
@@ -181,6 +187,13 @@ export class CrawlerStateManager {
       this.state.queue.length > 0 &&
       this.state.processing.size < this.config.maxThreads
     );
+  }
+
+  /**
+   * Get current queue length
+   */
+  getQueueLength(): number {
+    return this.state.queue.length;
   }
 
   /**
@@ -274,6 +287,6 @@ export class CrawlerStateManager {
    * Get total pages processed or queued
    */
   private getTotalPagesProcessedOrQueued(): number {
-    return this.state.results.length + this.state.queue.length + this.state.processing.size;
+    return this.state.results.length + this.state.queue.length;
   }
 }
