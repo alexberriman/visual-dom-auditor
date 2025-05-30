@@ -23,7 +23,7 @@ const launchBrowser = async (): Promise<Result<Browser, BrowserError>> => {
     setLoggerUrlContext(null);
     spinner.start(`🚀 Launching ${browserName} browser...`, { color: "blue", spinner: "dots" });
     const browser = await chromium.launch({ headless: true });
-    spinner.succeed(`✅ ${browserName} browser launched successfully`);
+    spinner.succeed(`✓ ${browserName} browser launched successfully`);
     return Ok(browser);
   } catch (error) {
     spinner.fail("❌ Failed to launch browser");
@@ -70,7 +70,7 @@ const openPage = async (
       });
     }
 
-    contextSpinner.succeed(`✅ Page loaded successfully`);
+    contextSpinner.succeed(`✓ Page loaded successfully`);
     return Ok(page);
   } catch (error) {
     contextSpinner.fail(`❌ Failed to load page`);
@@ -99,7 +99,7 @@ const setViewport = async (
       spinner: "dots3",
     });
     await page.setViewportSize({ width, height });
-    contextSpinner.succeed(`✅ Viewport set to ${width}×${height}`);
+    contextSpinner.succeed(`✓ Viewport set to ${width}×${height}`);
     return Ok(undefined);
   } catch (error) {
     contextSpinner.fail(`❌ Failed to set viewport size`);
@@ -140,7 +140,7 @@ const scrollPage = async (
     // Scroll back to the top
     await page.evaluate(() => window.scrollTo(0, 0));
 
-    contextSpinner.succeed("✅ Page content loaded");
+    contextSpinner.succeed("✓ Page content loaded");
     return Ok(undefined);
   } catch (error) {
     contextSpinner.fail("❌ Failed to scroll page");
@@ -216,7 +216,7 @@ const waitForStability = async (
     // Final short wait to ensure everything is settled
     await page.waitForTimeout(300);
 
-    contextSpinner.succeed("✅ Page is ready for analysis");
+    contextSpinner.succeed("✓ Page is ready for analysis");
     return Ok(undefined);
   } catch (error) {
     contextSpinner.fail("❌ Failed to stabilize page");

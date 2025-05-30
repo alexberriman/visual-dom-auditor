@@ -151,8 +151,8 @@ const runDetectors = async (
   const issueCount = counters.allIssues.length;
   const message =
     issueCount > 0
-      ? `✅ Analysis complete - Found ${issueCount} issue${issueCount > 1 ? "s" : ""}`
-      : `✅ Analysis complete - No issues found`;
+      ? `⚠️ Analysis complete - Found ${issueCount} issue${issueCount > 1 ? "s" : ""}`
+      : `✨ Analysis complete - No issues found`;
 
   spinner.succeed(message);
   return counters;
@@ -385,19 +385,19 @@ const processCrawl = async (config: import("./types/config").Config): Promise<nu
     spinner: "dots",
   });
   const browser = await chromium.launch({ headless: true });
-  spinner.succeed(`✅ ${browserName} browser launched successfully`);
+  spinner.succeed(`✓ ${browserName} browser launched successfully`);
 
   // Display crawl settings
-  console.log("\n📋 Crawl Settings:");
-  console.log(`  • Starting URL: ${config.urls[0]}`);
-  console.log(`  • Max depth: ${config.crawl.maxDepth}`);
-  console.log(`  • Max pages: ${config.crawl.maxPages}`);
-  console.log(`  • Max threads: ${config.crawl.maxThreads}`);
-  console.log(`  • Include subdomains: ${config.crawl.includeSubdomains ? "Yes" : "No"}`);
-  console.log(
+  console.error("\n📋 Crawl Settings:");
+  console.error(`  • Starting URL: ${config.urls[0]}`);
+  console.error(`  • Max depth: ${config.crawl.maxDepth}`);
+  console.error(`  • Max pages: ${config.crawl.maxPages}`);
+  console.error(`  • Max threads: ${config.crawl.maxThreads}`);
+  console.error(`  • Include subdomains: ${config.crawl.includeSubdomains ? "Yes" : "No"}`);
+  console.error(
     `  • Exclude patterns: ${config.crawl.excludePatterns.length > 0 ? config.crawl.excludePatterns.join(", ") : "None"}`
   );
-  console.log("");
+  console.error("");
 
   try {
     // Create page processor function that integrates with existing analyzer
@@ -465,7 +465,7 @@ const processMultipleUrls = async (config: import("./types/config").Config): Pro
   setLoggerUrlContext(null);
   spinner.start(`🚀 Launching ${browserName} browser...`, { color: "blue", spinner: "dots" });
   const browser = await chromium.launch({ headless: true });
-  spinner.succeed(`✅ ${browserName} browser launched successfully`);
+  spinner.succeed(`✓ ${browserName} browser launched successfully`);
 
   const results: import("./types/issues").SingleUrlAuditResult[] = [];
   let exitedEarly = false;

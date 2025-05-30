@@ -15,7 +15,7 @@ class SpinnerManager {
   constructor() {
     // Only show spinners in interactive terminals and not during tests
     this.shouldShowSpinners =
-      process.stdout.isTTY && process.env.NODE_ENV !== "test" && !process.env.CI;
+      process.stderr.isTTY && process.env.NODE_ENV !== "test" && !process.env.CI;
   }
 
   /**

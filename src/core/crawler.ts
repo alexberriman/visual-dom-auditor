@@ -126,7 +126,7 @@ export class CrawlerEngine {
       const successfulResults = this.stateManager.getSuccessfulResults();
 
       spinner.succeed(
-        `✅ Crawl complete - Analyzed ${stats.successfulPages}/${stats.totalPagesProcessed} pages in ${Math.round(stats.crawlDuration / 1000)}s`
+        `✓ Crawl complete - Analyzed ${stats.successfulPages}/${stats.totalPagesProcessed} pages in ${Math.round(stats.crawlDuration / 1000)}s`
       );
 
       return Ok(this.createCrawlAuditResult(stats, successfulResults));
