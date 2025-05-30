@@ -145,8 +145,7 @@ describe("OverlapDetector", () => {
     }
   });
 
-  it.skip("should set severity to minor when overlap percentage is low", async () => {
-    // Issue #1: Fix this test - currently there's an issue with the overlap calculation
+  it("should set severity to minor when overlap percentage is low", async () => {
     // Create detector with lower threshold for this test
     const minorDetector = new OverlapDetector({ minOverlapPercentage: 5 });
 
@@ -159,8 +158,9 @@ describe("OverlapDetector", () => {
       },
       {
         selector: "#element2",
-        // 20x20 overlap = 20% of 100x100
-        bounds: { x: 80, y: 80, width: 100, height: 100 },
+        // To get 20% overlap: sqrt(0.20 * 10000) = ~44.7, so use 45x45 overlap
+        // This positions element2 to have 45x45 overlap with element1
+        bounds: { x: 55, y: 55, width: 100, height: 100 },
         isFixed: false,
       },
     ]);

@@ -387,6 +387,18 @@ const processCrawl = async (config: import("./types/config").Config): Promise<nu
   const browser = await chromium.launch({ headless: true });
   spinner.succeed(`✅ ${browserName} browser launched successfully`);
 
+  // Display crawl settings
+  console.log("\n📋 Crawl Settings:");
+  console.log(`  • Starting URL: ${config.urls[0]}`);
+  console.log(`  • Max depth: ${config.crawl.maxDepth}`);
+  console.log(`  • Max pages: ${config.crawl.maxPages}`);
+  console.log(`  • Max threads: ${config.crawl.maxThreads}`);
+  console.log(`  • Include subdomains: ${config.crawl.includeSubdomains ? "Yes" : "No"}`);
+  console.log(
+    `  • Exclude patterns: ${config.crawl.excludePatterns.length > 0 ? config.crawl.excludePatterns.join(", ") : "None"}`
+  );
+  console.log("");
+
   try {
     // Create page processor function that integrates with existing analyzer
     const pageProcessor = async (

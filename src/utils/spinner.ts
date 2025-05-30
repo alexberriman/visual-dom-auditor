@@ -26,6 +26,13 @@ class SpinnerManager {
   }
 
   /**
+   * Get the current URL context
+   */
+  getUrlContext(): string | null {
+    return this.currentUrl;
+  }
+
+  /**
    * Start a new spinner with the given text and options
    */
   start(text: string, options?: { color?: Color; spinner?: SpinnerName | Spinner }): void {
@@ -144,3 +151,9 @@ export const spinner = new SpinnerManager();
 
 // Also export the class for testing
 export { SpinnerManager };
+
+// Export SpinnerOptions type
+export type SpinnerOptions = {
+  color?: Color;
+  spinner?: SpinnerName | Spinner;
+};

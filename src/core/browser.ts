@@ -3,6 +3,7 @@ import { Ok, Err, type Result } from "../types/ts-results";
 import type { Config } from "../types/config";
 import type { ConsoleErrorDetector } from "./detectors/console-error";
 import { spinner } from "../utils/spinner";
+import { ContextSpinner } from "../utils/context-spinner";
 import { formatBrowser, conditionalFormat } from "../utils/colors";
 import { setLoggerUrlContext } from "../utils/logger";
 
@@ -41,11 +42,13 @@ const openPage = async (
   url: string,
   consoleDetector?: ConsoleErrorDetector
 ): Promise<Result<Page, BrowserError>> => {
+  // Create a context-aware spinner for this specific URL
+  const contextSpinner = ContextSpinner.create(url);
+
   try {
-    // Set URL context for all subsequent operations
-    spinner.setUrlContext(url);
+    // Set logger context for this operation
     setLoggerUrlContext(url);
-    spinner.start(`🌐 Loading page...`, { color: "cyan", spinner: "dots2" });
+    contextSpinner.start(`🌐 Loading page...`, { color: "cyan", spinner: "dots2" });
 
     const page = await browser.newPage();
 
@@ -61,16 +64,16 @@ const openPage = async (
     });
 
     if (!response || !response.ok()) {
-      spinner.fail(`❌ Failed to load page (Status: ${response?.status() || "unknown"})`);
+      contextSpinner.fail(`❌ Failed to load page (Status: ${response?.status() || "unknown"})`);
       return Err({
         message: `Failed to load URL: ${url}. Status: ${response?.status() || "unknown"}`,
       });
     }
 
-    spinner.succeed(`✅ Page loaded successfully`);
+    contextSpinner.succeed(`✅ Page loaded successfully`);
     return Ok(page);
   } catch (error) {
-    spinner.fail(`❌ Failed to load page`);
+    contextSpinner.fail(`❌ Failed to load page`);
     return Err({
       message: `Failed to open page at URL: ${url}`,
       cause: error,
@@ -84,18 +87,22 @@ const openPage = async (
 const setViewport = async (
   page: Page,
   width: number,
-  height: number
+  height: number,
+  urlContext?: string | null
 ): Promise<Result<void, BrowserError>> => {
+  // Create a context-aware spinner
+  const contextSpinner = ContextSpinner.create(urlContext || null);
+
   try {
-    spinner.start(`📐 Setting viewport to ${width}×${height}...`, {
+    contextSpinner.start(`📐 Setting viewport to ${width}×${height}...`, {
       color: "yellow",
       spinner: "dots3",
     });
     await page.setViewportSize({ width, height });
-    spinner.succeed(`✅ Viewport set to ${width}×${height}`);
+    contextSpinner.succeed(`✅ Viewport set to ${width}×${height}`);
     return Ok(undefined);
   } catch (error) {
-    spinner.fail(`❌ Failed to set viewport size`);
+    contextSpinner.fail(`❌ Failed to set viewport size`);
     return Err({
       message: `Failed to set viewport size to ${width}x${height}`,
       cause: error,
@@ -106,9 +113,18 @@ const setViewport = async (
 /**
  * Scroll the page to trigger lazy-loaded elements
  */
-const scrollPage = async (page: Page): Promise<Result<void, BrowserError>> => {
+const scrollPage = async (
+  page: Page,
+  urlContext?: string | null
+): Promise<Result<void, BrowserError>> => {
+  // Create a context-aware spinner
+  const contextSpinner = ContextSpinner.create(urlContext || null);
+
   try {
-    spinner.start("📜 Scrolling page to load content...", { color: "magenta", spinner: "dots4" });
+    contextSpinner.start("📜 Scrolling page to load content...", {
+      color: "magenta",
+      spinner: "dots4",
+    });
 
     // Scroll to the bottom of the page in small increments
     // Using page.evaluate() which runs in the browser context where document/window are available
@@ -124,10 +140,10 @@ const scrollPage = async (page: Page): Promise<Result<void, BrowserError>> => {
     // Scroll back to the top
     await page.evaluate(() => window.scrollTo(0, 0));
 
-    spinner.succeed("✅ Page content loaded");
+    contextSpinner.succeed("✅ Page content loaded");
     return Ok(undefined);
   } catch (error) {
-    spinner.fail("❌ Failed to scroll page");
+    contextSpinner.fail("❌ Failed to scroll page");
     return Err({
       message: "Failed to scroll page",
       cause: error,
@@ -138,9 +154,18 @@ const scrollPage = async (page: Page): Promise<Result<void, BrowserError>> => {
 /**
  * Wait for the page to be stable (no more layout shifts, network activity, or animations)
  */
-const waitForStability = async (page: Page): Promise<Result<void, BrowserError>> => {
+const waitForStability = async (
+  page: Page,
+  urlContext?: string | null
+): Promise<Result<void, BrowserError>> => {
+  // Create a context-aware spinner
+  const contextSpinner = ContextSpinner.create(urlContext || null);
+
   try {
-    spinner.start("⏳ Waiting for page to stabilize...", { color: "green", spinner: "dots5" });
+    contextSpinner.start("⏳ Waiting for page to stabilize...", {
+      color: "green",
+      spinner: "dots5",
+    });
 
     // Wait for network activity to complete
     await page.waitForLoadState("networkidle");
@@ -180,7 +205,7 @@ const waitForStability = async (page: Page): Promise<Result<void, BrowserError>>
     });
 
     if (animationsInProgress) {
-      spinner.update("⏳ Waiting for animations to complete...");
+      contextSpinner.update("⏳ Waiting for animations to complete...");
       // Wait a bit longer if animations are still detected
       await page.waitForTimeout(1000);
     }
@@ -191,10 +216,10 @@ const waitForStability = async (page: Page): Promise<Result<void, BrowserError>>
     // Final short wait to ensure everything is settled
     await page.waitForTimeout(300);
 
-    spinner.succeed("✅ Page is ready for analysis");
+    contextSpinner.succeed("✅ Page is ready for analysis");
     return Ok(undefined);
   } catch (error) {
-    spinner.fail("❌ Failed to stabilize page");
+    contextSpinner.fail("❌ Failed to stabilize page");
     return Err({
       message: "Failed while waiting for page stability",
       cause: error,
@@ -224,22 +249,22 @@ export const preparePageForUrl = async (
 
   const page = pageResult.val;
 
-  // Set viewport
-  const viewportResult = await setViewport(page, viewport.width, viewport.height);
+  // Set viewport with URL context
+  const viewportResult = await setViewport(page, viewport.width, viewport.height, url);
   if (viewportResult.err) {
     await page.close();
     return Err(viewportResult.val);
   }
 
-  // Scroll page
-  const scrollResult = await scrollPage(page);
+  // Scroll page with URL context
+  const scrollResult = await scrollPage(page, url);
   if (scrollResult.err) {
     await page.close();
     return Err(scrollResult.val);
   }
 
-  // Wait for stability
-  const stabilityResult = await waitForStability(page);
+  // Wait for stability with URL context
+  const stabilityResult = await waitForStability(page, url);
   if (stabilityResult.err) {
     await page.close();
     return Err(stabilityResult.val);

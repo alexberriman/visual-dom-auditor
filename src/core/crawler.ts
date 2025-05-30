@@ -9,7 +9,6 @@ import { extractUniqueUrls } from "../utils/link-extractor";
 import { normalizeUrl } from "../utils/url-normalizer";
 import { preparePageForUrl } from "./browser";
 import { spinner } from "../utils/spinner";
-import { setLoggerUrlContext } from "../utils/logger";
 
 /**
  * Error type for crawler operations
@@ -159,9 +158,6 @@ export class CrawlerEngine {
     let pageResult: CrawlPageResult;
 
     try {
-      // Set URL context for logging
-      setLoggerUrlContext(queueItem.url);
-
       // Create console error detector
       const { ConsoleErrorDetector } = await import("./detectors/console-error");
       const consoleDetector = new ConsoleErrorDetector();
