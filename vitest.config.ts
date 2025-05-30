@@ -1,10 +1,13 @@
 import { defineConfig } from "vitest/config";
-import { resolve } from "path";
+import { resolve } from "node:path";
 
 export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    env: {
+      NODE_ENV: "test",
+    },
     coverage: {
       reporter: ["text", "json", "html"],
       include: ["src/**/*.ts"],

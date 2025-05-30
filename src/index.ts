@@ -222,7 +222,10 @@ const outputResults = async (
     // Write results to file
     await fs.writeFile(savePath, JSON.stringify(results, null, 2), "utf8");
   } else {
-    process.stdout.write(JSON.stringify(results, null, 2));
+    // Only output to console if not in test environment
+    if (process.env.NODE_ENV !== "test") {
+      process.stdout.write(JSON.stringify(results, null, 2));
+    }
   }
 };
 

@@ -311,7 +311,10 @@ const getElementsWithPadding = async (
 
     return Ok(elements || []);
   } catch (error) {
-    console.error("Error fetching elements:", error);
+    // Only log errors if not in test environment
+    if (process.env.NODE_ENV !== "test") {
+      console.error("Error fetching elements:", error);
+    }
     return Err({
       message: "Failed to get elements with padding",
       cause: error,
