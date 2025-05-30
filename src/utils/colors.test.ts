@@ -47,8 +47,8 @@ describe("colors utility", () => {
       expect(result).toContain("[not-a-url]");
     });
 
-    it("should use consistent colors for the same domain", () => {
-      const result1 = formatUrl("https://example.com");
+    it("should use consistent colors for the same URL", () => {
+      const result1 = formatUrl("https://example.com/path");
       const result2 = formatUrl("https://example.com/path");
 
       // Extract color codes using dynamic regex to avoid ESLint control character issues
@@ -198,7 +198,7 @@ describe("colors utility", () => {
       expect(result).toContain("[invalid-url]");
     });
 
-    it("should use consistent colors for the same domain", () => {
+    it("should use consistent colors for the same URL path", () => {
       Object.defineProperty(process.stdout, "isTTY", {
         value: true,
         writable: true,
@@ -206,9 +206,9 @@ describe("colors utility", () => {
       delete process.env.CI;
       delete process.env.NODE_ENV;
 
-      const result1 = createUrlPrefix("https://example.com");
+      const result1 = createUrlPrefix("https://example.com/page");
       const result2 = createUrlPrefix("https://example.com/page");
-      const result3 = createUrlPrefix("https://example.com/other");
+      const result3 = createUrlPrefix("https://example.com/page");
 
       // Extract color codes from results
       const colorRegex = new RegExp(ESC + "\\[(\\d+)m");
@@ -220,14 +220,14 @@ describe("colors utility", () => {
       expect(colorMatch2).not.toBeNull();
       expect(colorMatch3).not.toBeNull();
 
-      // All URLs from same domain should have same color
+      // All identical URLs should have same color
       if (colorMatch1 && colorMatch2 && colorMatch3) {
         expect(colorMatch1[1]).toBe(colorMatch2[1]);
         expect(colorMatch2[1]).toBe(colorMatch3[1]);
       }
     });
 
-    it("should use different colors for different domains", () => {
+    it("should use different colors for different paths", () => {
       Object.defineProperty(process.stdout, "isTTY", {
         value: true,
         writable: true,
@@ -235,19 +235,19 @@ describe("colors utility", () => {
       delete process.env.CI;
       delete process.env.NODE_ENV;
 
-      // Use more domains to ensure we get color variety
-      const domains = [
+      // Use different paths from same domain to ensure we get color variety
+      const urls = [
         "https://example.com",
-        "https://google.com",
-        "https://github.com",
-        "https://stackoverflow.com",
-        "https://npmjs.com",
-        "https://reddit.com",
-        "https://twitter.com",
-        "https://youtube.com",
+        "https://example.com/blog",
+        "https://example.com/about",
+        "https://example.com/contact",
+        "https://example.com/products",
+        "https://example.com/services",
+        "https://example.com/team",
+        "https://example.com/careers",
       ];
 
-      const colors = domains.map((url) => {
+      const colors = urls.map((url) => {
         const result = createUrlPrefix(url);
         // Match the pattern: bold (ESC[1m) followed by color (ESC[XXm)
         const boldColorRegex = new RegExp(ESC + "\\[1m" + ESC + "\\[(\\d+)m");
@@ -264,9 +264,9 @@ describe("colors utility", () => {
       // Check if we got any color codes at all
       const validColors = colors.filter((c) => c !== null);
 
-      // At least some domains should have different colors
+      // Different paths should have different colors
       const uniqueColors = new Set(validColors);
-      expect(uniqueColors.size).toBeGreaterThan(1);
+      expect(uniqueColors.size).toBeGreaterThan(3);
     });
   });
 

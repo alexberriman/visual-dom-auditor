@@ -66,9 +66,10 @@ const hashString = (str: string): number => {
  */
 const getUrlColor = (url: string): keyof typeof colors => {
   try {
-    // Use just the domain for color selection to keep consistency across paths
-    const domain = new URL(url).hostname;
-    const hash = hashString(domain);
+    // Use full URL (domain + path) for color selection to differentiate paths
+    const urlObj = new URL(url);
+    const fullPath = urlObj.hostname + urlObj.pathname;
+    const hash = hashString(fullPath);
     const colorIndex = hash % urlColors.length;
     return urlColors[colorIndex];
   } catch {
