@@ -4,9 +4,35 @@ import { performance } from "node:perf_hooks";
 /**
  * Logger configuration - create a pre-configured logger instance
  * based on project requirements.
+ *
+ * Logging is silent by default unless:
+ * - LOG_LEVEL environment variable is set
+ * - --verbose flag is passed (handled by CLI)
+ * - Error level logs (always shown)
  */
+const shouldEnableLogging = (): boolean => {
+  return Boolean(process.env.LOG_LEVEL || process.env.VERBOSE_LOGGING);
+};
+
 const logger = pino({
-  level: process.env.LOG_LEVEL || "info",
+  level: shouldEnableLogging() ? process.env.LOG_LEVEL || "info" : "silent",
+  transport: shouldEnableLogging()
+    ? {
+        target: "pino-pretty",
+        options: {
+          colorize: true,
+          translateTime: "SYS:standard",
+          ignore: "pid,hostname",
+        },
+      }
+    : undefined,
+});
+
+/**
+ * Error-only logger for critical errors that should always be shown
+ */
+const errorLogger = pino({
+  level: "error",
   transport: {
     target: "pino-pretty",
     options: {
@@ -46,7 +72,7 @@ export const warn = (message: string, ...args: unknown[]): void => {
  * Always visible regardless of log level
  */
 export const error = (message: string, ...args: unknown[]): void => {
-  logger.error({ data: args.length > 0 ? args : undefined }, message);
+  errorLogger.error({ data: args.length > 0 ? args : undefined }, message);
 };
 
 /**

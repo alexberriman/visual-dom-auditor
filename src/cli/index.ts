@@ -106,11 +106,17 @@ export const parseCli = (): Result<Config, ParseCliError> => {
     .option(
       "--detectors <detectors>",
       "Comma or space-separated list of detectors to run (omit to use defaults)"
-    );
+    )
+    .option("--verbose", "Enable verbose logging");
 
   program.parse();
 
   const options = program.opts();
+
+  // Set verbose logging environment variable if --verbose flag is used
+  if (options.verbose) {
+    process.env.VERBOSE_LOGGING = "true";
+  }
 
   // Validate URL input
   const urlValidationResult = validateUrls(options);

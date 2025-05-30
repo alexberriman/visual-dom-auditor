@@ -63,6 +63,7 @@ npx @alexberriman/visual-dom-auditor --url https://example.com
 | `--save <path>` | Save output to file (e.g., `./reports/audit.json`) | - |
 | `--exit-early` | Exit immediately when the first critical error is found | `false` |
 | `--detectors <detectors>` | Comma or space-separated list of detectors to run (e.g., `console-error,overlap`) | All enabled detectors |
+| `--verbose` | Enable verbose logging output | `false` |
 
 **Note:** Use either `--url` for single URL analysis or `--urls` for multiple URLs, but not both.
 
@@ -100,6 +101,33 @@ npx @alexberriman/visual-dom-auditor --url https://example.com --detectors "padd
 
 # Include disabled detectors like centering
 npx @alexberriman/visual-dom-auditor --url https://example.com --detectors "centering,overlap,console-error"
+
+# Enable verbose logging to see detailed operation information
+npx @alexberriman/visual-dom-auditor --url https://example.com --verbose
+
+# Use environment variable for logging (alternative to --verbose)
+LOG_LEVEL=debug npx @alexberriman/visual-dom-auditor --url https://example.com
+```
+
+### Logging Behavior
+
+By default, the tool operates silently and only outputs the JSON results. Logging is enabled when:
+
+- `--verbose` flag is used
+- `LOG_LEVEL` environment variable is set (e.g., `LOG_LEVEL=info` or `LOG_LEVEL=debug`)
+- Error messages are always shown regardless of log level
+
+This design allows for clean JSON output that can be easily piped to other tools:
+
+```bash
+# Pipe JSON output to jq for pretty formatting
+npx @alexberriman/visual-dom-auditor --url https://example.com | jq '.'
+
+# Extract only critical issues
+npx @alexberriman/visual-dom-auditor --url https://example.com | jq '.issues[] | select(.severity == "critical")'
+
+# Count issues by type
+npx @alexberriman/visual-dom-auditor --url https://example.com | jq '.metadata.issuesByType'
 ```
 
 ## 🧪 Detection Types
