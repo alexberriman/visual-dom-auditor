@@ -216,10 +216,10 @@ const createSingleUrlAuditResult = (
 };
 
 /**
- * Check if a result contains critical issues
+ * Check if a result contains any issues
  */
-const hasCriticalIssues = (counters: IssueCounters): boolean => {
-  return counters.criticalIssues > 0;
+const hasAnyIssues = (counters: IssueCounters): boolean => {
+  return counters.allIssues.length > 0;
 };
 
 /**
@@ -517,9 +517,9 @@ const processMultipleUrls = async (config: import("./types/config").Config): Pro
         const urlResult = createSingleUrlAuditResult(url, config.viewport, counters);
         results.push(urlResult);
 
-        // Check for early exit on critical issues
-        if (config.exitEarly && hasCriticalIssues(counters)) {
-          spinner.warn(`⚠️  Critical issues found - exiting early`);
+        // Check for early exit on any issues
+        if (config.exitEarly && hasAnyIssues(counters)) {
+          spinner.warn(`⚠️  Issues found - exiting early`);
           exitedEarly = true;
           await page.close();
           break;

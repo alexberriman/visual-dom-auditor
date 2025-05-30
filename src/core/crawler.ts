@@ -52,86 +52,17 @@ export class CrawlerEngine {
     try {
       const startUrl = this.config.urls[0];
 
-      // Normalize and enqueue the starting URL
-      const normalizeResult = normalizeUrl(startUrl);
-      if (normalizeResult.err) {
-        return Err({
-          message: `Failed to normalize start URL: ${startUrl}`,
-          cause: normalizeResult.val,
-        });
+      // Initialize crawling
+      const initResult = await this.initializeCrawl(startUrl);
+      if (initResult.err) {
+        return Err(initResult.val);
       }
 
-      const normalizedStartUrl = normalizeResult.val;
+      // Execute main crawling loop
+      await this.executeCrawlLoop(browser);
 
-      // Enqueue the starting URL with depth 0
-      const enqueueResult = this.stateManager.enqueueUrl(startUrl, normalizedStartUrl, 0);
-
-      if (enqueueResult.err) {
-        return Err({
-          message: "Failed to enqueue start URL",
-          cause: enqueueResult.val,
-        });
-      }
-
-      spinner.start(`🕷️  Starting crawl from ${startUrl}...`, {
-        color: "cyan",
-        spinner: "dots12",
-      });
-
-      // Main crawling loop
-      while (this.stateManager.shouldContinue()) {
-        const processingTasks: Promise<void>[] = [];
-
-        // Start processing available URLs
-        while (this.stateManager.hasUrlsToProcess()) {
-          const dequeueResult = this.stateManager.dequeueUrl();
-
-          if (dequeueResult.err) {
-            this.stateManager.addError({
-              message: "Failed to dequeue URL",
-              cause: dequeueResult.val,
-            });
-            break;
-          }
-
-          const queueItem = dequeueResult.val;
-          if (!queueItem) {
-            break; // No more URLs available for processing
-          }
-
-          // Start processing this URL concurrently
-          const processingTask = this.processUrl(browser, queueItem);
-          processingTasks.push(processingTask);
-        }
-
-        // Wait for at least one task to complete before continuing
-        if (processingTasks.length > 0) {
-          await Promise.race(processingTasks);
-          // Give time for any newly discovered URLs to be enqueued
-          await this.delay(50);
-        } else {
-          // No tasks to process, wait a bit and check again
-          await this.delay(100);
-        }
-
-        // Update progress
-        this.updateProgress();
-      }
-
-      // Wait for all remaining tasks to complete
-      spinner.update("🔄 Finishing remaining page analyses...");
-      while (this.stateManager.getState().processing.size > 0) {
-        await this.delay(100);
-      }
-
-      const stats = this.stateManager.getStats(startUrl);
-      const successfulResults = this.stateManager.getSuccessfulResults();
-
-      spinner.succeed(
-        `✓ Crawl complete - Analyzed ${stats.successfulPages}/${stats.totalPagesProcessed} pages in ${Math.round(stats.crawlDuration / 1000)}s`
-      );
-
-      return Ok(this.createCrawlAuditResult(stats, successfulResults));
+      // Finalize crawling
+      return await this.finalizeCrawl(startUrl);
     } catch (error) {
       this.concurrencyController.stop();
       return Err({
@@ -139,6 +70,126 @@ export class CrawlerEngine {
         cause: error,
       });
     }
+  }
+
+  /**
+   * Initialize crawling by normalizing and enqueuing the start URL
+   */
+  private async initializeCrawl(startUrl: string): Promise<Result<void, CrawlerEngineError>> {
+    // Normalize and enqueue the starting URL
+    const normalizeResult = normalizeUrl(startUrl);
+    if (normalizeResult.err) {
+      return Err({
+        message: `Failed to normalize start URL: ${startUrl}`,
+        cause: normalizeResult.val,
+      });
+    }
+
+    const normalizedStartUrl = normalizeResult.val;
+
+    // Enqueue the starting URL with depth 0
+    const enqueueResult = this.stateManager.enqueueUrl(startUrl, normalizedStartUrl, 0);
+
+    if (enqueueResult.err) {
+      return Err({
+        message: "Failed to enqueue start URL",
+        cause: enqueueResult.val,
+      });
+    }
+
+    spinner.start(`🕷️  Starting crawl from ${startUrl}...`, {
+      color: "cyan",
+      spinner: "dots12",
+    });
+
+    return Ok(undefined);
+  }
+
+  /**
+   * Execute the main crawling loop
+   */
+  private async executeCrawlLoop(browser: Browser): Promise<void> {
+    while (this.stateManager.shouldContinue()) {
+      const processingTasks = await this.startProcessingTasks(browser);
+
+      if (processingTasks.length > 0) {
+        await Promise.race(processingTasks);
+
+        // Check if we should exit early after any task completes
+        if (!this.stateManager.shouldContinue()) {
+          break;
+        }
+
+        // Give time for any newly discovered URLs to be enqueued
+        await this.delay(50);
+      } else {
+        // No tasks to process, wait a bit and check again
+        await this.delay(100);
+      }
+
+      // Update progress
+      this.updateProgress();
+    }
+  }
+
+  /**
+   * Start processing available URLs and return processing tasks
+   */
+  private async startProcessingTasks(browser: Browser): Promise<Promise<void>[]> {
+    const processingTasks: Promise<void>[] = [];
+
+    // Start processing available URLs
+    while (this.stateManager.hasUrlsToProcess()) {
+      const dequeueResult = this.stateManager.dequeueUrl();
+
+      if (dequeueResult.err) {
+        this.stateManager.addError({
+          message: "Failed to dequeue URL",
+          cause: dequeueResult.val,
+        });
+        break;
+      }
+
+      const queueItem = dequeueResult.val;
+      if (!queueItem) {
+        break; // No more URLs available for processing
+      }
+
+      // Start processing this URL concurrently
+      const processingTask = this.processUrl(browser, queueItem);
+      processingTasks.push(processingTask);
+    }
+
+    return processingTasks;
+  }
+
+  /**
+   * Finalize crawling and return results
+   */
+  private async finalizeCrawl(
+    startUrl: string
+  ): Promise<Result<CrawlAuditResult, CrawlerEngineError>> {
+    // Wait for all remaining tasks to complete (unless we exited early)
+    const state = this.stateManager.getState();
+    if (!state.stopped && state.processing.size > 0) {
+      spinner.update("🔄 Finishing remaining page analyses...");
+      while (this.stateManager.getState().processing.size > 0) {
+        await this.delay(100);
+      }
+    } else if (state.stopped) {
+      // If we stopped early, wait briefly for any in-flight tasks to complete gracefully
+      spinner.update("🛑 Exiting early due to fatal error...");
+      await this.delay(500); // Give a brief moment for graceful cleanup
+    }
+
+    const stats = this.stateManager.getStats(startUrl);
+    const successfulResults = this.stateManager.getSuccessfulResults();
+
+    spinner.succeed(
+      `✓ Crawl complete - Analyzed ${stats.successfulPages}/${stats.totalPagesProcessed} pages in ${Math.round(stats.crawlDuration / 1000)}s`
+    );
+
+    return Ok(this.createCrawlAuditResult(stats, successfulResults));
   }
 
   /**
@@ -216,9 +267,9 @@ export class CrawlerEngine {
         } else {
           const auditResult = analysisResult.val;
 
-          // Check for early exit on critical issues
-          const hasCriticalIssues = auditResult.metadata.criticalIssues > 0;
-          if (this.config.exitEarly && hasCriticalIssues) {
+          // Check for early exit on any issues found
+          const hasAnyIssues = auditResult.metadata.totalIssuesFound > 0;
+          if (this.config.exitEarly && hasAnyIssues) {
             this.stateManager.stop();
           }
 
