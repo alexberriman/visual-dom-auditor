@@ -1,5 +1,6 @@
 import pino from "pino";
 import { performance } from "node:perf_hooks";
+import { prefixWithUrl } from "./colors";
 
 /**
  * Logger configuration - create a pre-configured logger instance
@@ -44,11 +45,31 @@ const errorLogger = pino({
 });
 
 /**
+ * Current URL context for logging
+ */
+let currentLoggerUrl: string | null = null;
+
+/**
+ * Set the current URL context for all subsequent log messages
+ */
+export const setLoggerUrlContext = (url: string | null): void => {
+  currentLoggerUrl = url;
+};
+
+/**
+ * Get the current URL context
+ */
+export const getLoggerUrlContext = (): string | null => {
+  return currentLoggerUrl;
+};
+
+/**
  * Debug logger - use for detailed diagnostic information
  * Only visible when LOG_LEVEL is set to "debug" or lower
  */
 export const debug = (message: string, ...args: unknown[]): void => {
-  logger.debug({ data: args.length > 0 ? args : undefined }, message);
+  const displayMessage = currentLoggerUrl ? prefixWithUrl(currentLoggerUrl, message) : message;
+  logger.debug({ data: args.length > 0 ? args : undefined }, displayMessage);
 };
 
 /**
@@ -56,7 +77,8 @@ export const debug = (message: string, ...args: unknown[]): void => {
  * Visible by default (info level)
  */
 export const info = (message: string, ...args: unknown[]): void => {
-  logger.info({ data: args.length > 0 ? args : undefined }, message);
+  const displayMessage = currentLoggerUrl ? prefixWithUrl(currentLoggerUrl, message) : message;
+  logger.info({ data: args.length > 0 ? args : undefined }, displayMessage);
 };
 
 /**
@@ -64,7 +86,8 @@ export const info = (message: string, ...args: unknown[]): void => {
  * Visible by default (info level)
  */
 export const warn = (message: string, ...args: unknown[]): void => {
-  logger.warn({ data: args.length > 0 ? args : undefined }, message);
+  const displayMessage = currentLoggerUrl ? prefixWithUrl(currentLoggerUrl, message) : message;
+  logger.warn({ data: args.length > 0 ? args : undefined }, displayMessage);
 };
 
 /**
@@ -72,7 +95,8 @@ export const warn = (message: string, ...args: unknown[]): void => {
  * Always visible regardless of log level
  */
 export const error = (message: string, ...args: unknown[]): void => {
-  errorLogger.error({ data: args.length > 0 ? args : undefined }, message);
+  const displayMessage = currentLoggerUrl ? prefixWithUrl(currentLoggerUrl, message) : message;
+  errorLogger.error({ data: args.length > 0 ? args : undefined }, displayMessage);
 };
 
 /**
@@ -98,4 +122,6 @@ export default {
   warn,
   error,
   timer,
+  setLoggerUrlContext,
+  getLoggerUrlContext,
 };

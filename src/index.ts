@@ -2,10 +2,13 @@
 
 import { parseCli } from "./cli";
 import { preparePage, preparePageForUrl, closeBrowser } from "./core/browser";
-import { validateResult } from "./core/analyzer";
+import { validateResult, type Detector } from "./core/analyzer";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright-core";
+import { spinner } from "./utils/spinner";
+import { formatBrowser, conditionalFormat } from "./utils/colors";
+import { setLoggerUrlContext } from "./utils/logger";
 // We'll dynamically import detectors in the main function
 
 /**
@@ -42,6 +45,88 @@ const initializeIssueCounters = (): IssueCounters => {
 };
 
 /**
+ * Determine which detectors to run based on selection
+ */
+const getDetectorsToRun = async (
+  selectedDetectors?: readonly string[]
+): Promise<Record<string, Detector>> => {
+  const { detectors, disabledDetectors } = await import("./core/detectors");
+  const allDetectors = { ...detectors, ...disabledDetectors };
+
+  return selectedDetectors && selectedDetectors.length > 0
+    ? Object.fromEntries(
+        selectedDetectors
+          .filter((name) => name in allDetectors)
+          .map((name) => [name, allDetectors[name]])
+      )
+    : detectors;
+};
+
+/**
+ * Execute a single detector and handle errors
+ */
+const executeDetector = async (
+  name: string,
+  detector: Detector,
+  page: import("playwright-core").Page,
+  consoleDetector?: import("./core/detectors/console-error").ConsoleErrorDetector
+): Promise<
+  import("./types/ts-results").Result<import("./types/issues").Issue[], unknown> | null
+> => {
+  // Handle console error detector specially
+  if (name === "console-error" && consoleDetector) {
+    return (await consoleDetector.collectErrors(page)) as import("./types/ts-results").Result<
+      import("./types/issues").Issue[],
+      unknown
+    >;
+  }
+
+  if (name === "console-error" && !consoleDetector) {
+    return null; // Skip this detector
+  }
+
+  return (await detector.detect(page)) as import("./types/ts-results").Result<
+    import("./types/issues").Issue[],
+    unknown
+  >;
+};
+
+/**
+ * Handle detector execution with error handling
+ */
+const runSingleDetector = async (
+  name: string,
+  detector: Detector,
+  page: import("playwright-core").Page,
+  index: number,
+  totalDetectors: number,
+  counters: IssueCounters,
+  consoleDetector?: import("./core/detectors/console-error").ConsoleErrorDetector
+): Promise<void> => {
+  try {
+    const detectorDisplayName = name.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase());
+    spinner.update(
+      `🔍 Running ${detectorDisplayName} detector (${index + 1}/${totalDetectors})...`
+    );
+
+    const result = await executeDetector(name, detector, page, consoleDetector);
+
+    if (result === null) {
+      return; // Detector was skipped
+    }
+
+    if (result.ok && result.val.length > 0) {
+      counters.allIssues.push(...result.val);
+      processIssues(result.val, counters);
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    spinner.warn(`⚠️  Error in ${name} detector: ${errorMessage}`);
+    spinner.start(`🔍 Continuing with remaining detectors...`, { color: "blue", spinner: "dots6" });
+  }
+};
+
+/**
  * Run specified detectors on the page
  */
 const runDetectors = async (
@@ -50,54 +135,25 @@ const runDetectors = async (
   selectedDetectors?: readonly string[]
 ): Promise<IssueCounters> => {
   const counters = initializeIssueCounters();
+  const detectorsToRun = await getDetectorsToRun(selectedDetectors);
+  const totalDetectors = Object.keys(detectorsToRun).length;
 
-  // Import individual detectors
-  const { detectors, disabledDetectors } = await import("./core/detectors");
+  spinner.start(`🔍 Running ${totalDetectors} detector${totalDetectors > 1 ? "s" : ""}...`, {
+    color: "blue",
+    spinner: "dots6",
+  });
 
-  // Combine enabled and disabled detectors for selection
-  const allDetectors = { ...detectors, ...disabledDetectors };
-
-  // Determine which detectors to run
-  const detectorsToRun =
-    selectedDetectors && selectedDetectors.length > 0
-      ? Object.fromEntries(
-          selectedDetectors
-            .filter((name) => name in allDetectors)
-            .map((name) => [name, allDetectors[name]])
-        )
-      : detectors; // Use default enabled detectors if none specified
-
-  // Run each detector separately to prevent one failure from stopping everything
-  for (const [name, detector] of Object.entries(detectorsToRun)) {
-    try {
-      let result;
-
-      // Handle console error detector specially if it was provided
-      if (name === "console-error" && consoleDetector) {
-        // Use the early-started console detector to collect errors
-        result = await consoleDetector.collectErrors(page);
-      } else if (name === "console-error" && !consoleDetector) {
-        // Skip the default console detector since we don't have the early-started one
-        continue;
-      } else {
-        // Run normal detector
-        result = await detector.detect(page);
-      }
-
-      if (result.ok && result.val.length > 0) {
-        // Add issues to our collection
-        counters.allIssues.push(...result.val);
-
-        // Process issues and update counters
-        processIssues(result.val, counters);
-      }
-    } catch (error) {
-      // If the detector throws an exception, log it but continue with other detectors
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error(`Error running ${name} detector: ${errorMessage}`);
-    }
+  for (const [index, [name, detector]] of Object.entries(detectorsToRun).entries()) {
+    await runSingleDetector(name, detector, page, index, totalDetectors, counters, consoleDetector);
   }
 
+  const issueCount = counters.allIssues.length;
+  const message =
+    issueCount > 0
+      ? `✅ Analysis complete - Found ${issueCount} issue${issueCount > 1 ? "s" : ""}`
+      : `✅ Analysis complete - No issues found`;
+
+  spinner.succeed(message);
   return counters;
 };
 
@@ -281,6 +337,9 @@ const processSingleUrl = async (config: import("./types/config").Config): Promis
     // Run all detectors and collect results
     const counters = await runDetectors(page, consoleDetector, config.detectors);
 
+    // Clear spinner before outputting results
+    spinner.clear();
+
     // Create audit result
     const auditResult = createSingleUrlAuditResult(config.urls[0], config.viewport, counters);
 
@@ -305,7 +364,14 @@ const processSingleUrl = async (config: import("./types/config").Config): Promis
  */
 const processMultipleUrls = async (config: import("./types/config").Config): Promise<number> => {
   // Launch browser once for all URLs
+  const browserName = conditionalFormat("Chromium", formatBrowser);
+  // Clear URL context for browser-level operations
+  spinner.setUrlContext(null);
+  setLoggerUrlContext(null);
+  spinner.start(`🚀 Launching ${browserName} browser...`, { color: "blue", spinner: "dots" });
   const browser = await chromium.launch({ headless: true });
+  spinner.succeed(`✅ ${browserName} browser launched successfully`);
+
   const results: import("./types/issues").SingleUrlAuditResult[] = [];
   let exitedEarly = false;
 
@@ -313,15 +379,28 @@ const processMultipleUrls = async (config: import("./types/config").Config): Pro
     // Create a console error detector
     const { ConsoleErrorDetector } = await import("./core/detectors/console-error");
 
+    spinner.start(
+      `📊 Processing ${config.urls.length} URL${config.urls.length > 1 ? "s" : ""}...`,
+      { color: "cyan", spinner: "dots2" }
+    );
+
     // Process each URL sequentially
-    for (const url of config.urls) {
+    for (const [index, url] of config.urls.entries()) {
+      const urlNumber = index + 1;
+      const totalUrls = config.urls.length;
+
+      // Set URL context for this iteration
+      spinner.setUrlContext(url);
+      setLoggerUrlContext(url);
+      spinner.update(`🌐 Processing (${urlNumber}/${totalUrls})...`);
+
       const consoleDetector = new ConsoleErrorDetector();
 
       // Prepare page for this URL
       const pageResult = await preparePageForUrl(browser, url, config.viewport, consoleDetector);
 
       if (pageResult.err) {
-        console.error(`Error processing ${url}: ${pageResult.val.message}`);
+        spinner.fail(`❌ Error processing page: ${pageResult.val.message}`);
 
         // If exit early is enabled, stop processing and return results
         if (config.exitEarly) {
@@ -345,6 +424,7 @@ const processMultipleUrls = async (config: import("./types/config").Config): Pro
 
         // Check for early exit on critical issues
         if (config.exitEarly && hasCriticalIssues(counters)) {
+          spinner.warn(`⚠️  Critical issues found - exiting early`);
           exitedEarly = true;
           await page.close();
           break;
@@ -354,6 +434,9 @@ const processMultipleUrls = async (config: import("./types/config").Config): Pro
         await page.close();
       }
     }
+
+    // Clear spinner before outputting results
+    spinner.clear();
 
     // Create multi-URL audit result
     const multiUrlResult = createMultiUrlAuditResult(config.viewport, results, exitedEarly);

@@ -2,6 +2,9 @@ import { chromium, type Page, type Browser } from "playwright-core";
 import { Ok, Err, type Result } from "../types/ts-results";
 import type { Config } from "../types/config";
 import type { ConsoleErrorDetector } from "./detectors/console-error";
+import { spinner } from "../utils/spinner";
+import { formatBrowser, conditionalFormat } from "../utils/colors";
+import { setLoggerUrlContext } from "../utils/logger";
 
 type BrowserError = {
   message: string;
@@ -13,9 +16,16 @@ type BrowserError = {
  */
 const launchBrowser = async (): Promise<Result<Browser, BrowserError>> => {
   try {
+    const browserName = conditionalFormat("Chromium", formatBrowser);
+    // Clear URL context for browser-level operations
+    spinner.setUrlContext(null);
+    setLoggerUrlContext(null);
+    spinner.start(`🚀 Launching ${browserName} browser...`, { color: "blue", spinner: "dots" });
     const browser = await chromium.launch({ headless: true });
+    spinner.succeed(`✅ ${browserName} browser launched successfully`);
     return Ok(browser);
   } catch (error) {
+    spinner.fail("❌ Failed to launch browser");
     return Err({
       message: "Failed to launch browser",
       cause: error,
@@ -32,6 +42,11 @@ const openPage = async (
   consoleDetector?: ConsoleErrorDetector
 ): Promise<Result<Page, BrowserError>> => {
   try {
+    // Set URL context for all subsequent operations
+    spinner.setUrlContext(url);
+    setLoggerUrlContext(url);
+    spinner.start(`🌐 Loading page...`, { color: "cyan", spinner: "dots2" });
+
     const page = await browser.newPage();
 
     // Start listening for console errors before navigation if detector provided
@@ -46,13 +61,16 @@ const openPage = async (
     });
 
     if (!response || !response.ok()) {
+      spinner.fail(`❌ Failed to load page (Status: ${response?.status() || "unknown"})`);
       return Err({
         message: `Failed to load URL: ${url}. Status: ${response?.status() || "unknown"}`,
       });
     }
 
+    spinner.succeed(`✅ Page loaded successfully`);
     return Ok(page);
   } catch (error) {
+    spinner.fail(`❌ Failed to load page`);
     return Err({
       message: `Failed to open page at URL: ${url}`,
       cause: error,
@@ -69,9 +87,15 @@ const setViewport = async (
   height: number
 ): Promise<Result<void, BrowserError>> => {
   try {
+    spinner.start(`📐 Setting viewport to ${width}×${height}...`, {
+      color: "yellow",
+      spinner: "dots3",
+    });
     await page.setViewportSize({ width, height });
+    spinner.succeed(`✅ Viewport set to ${width}×${height}`);
     return Ok(undefined);
   } catch (error) {
+    spinner.fail(`❌ Failed to set viewport size`);
     return Err({
       message: `Failed to set viewport size to ${width}x${height}`,
       cause: error,
@@ -84,6 +108,8 @@ const setViewport = async (
  */
 const scrollPage = async (page: Page): Promise<Result<void, BrowserError>> => {
   try {
+    spinner.start("📜 Scrolling page to load content...", { color: "magenta", spinner: "dots4" });
+
     // Scroll to the bottom of the page in small increments
     // Using page.evaluate() which runs in the browser context where document/window are available
     const scrollHeight = await page.evaluate(() => document.body.scrollHeight);
@@ -98,8 +124,10 @@ const scrollPage = async (page: Page): Promise<Result<void, BrowserError>> => {
     // Scroll back to the top
     await page.evaluate(() => window.scrollTo(0, 0));
 
+    spinner.succeed("✅ Page content loaded");
     return Ok(undefined);
   } catch (error) {
+    spinner.fail("❌ Failed to scroll page");
     return Err({
       message: "Failed to scroll page",
       cause: error,
@@ -112,6 +140,8 @@ const scrollPage = async (page: Page): Promise<Result<void, BrowserError>> => {
  */
 const waitForStability = async (page: Page): Promise<Result<void, BrowserError>> => {
   try {
+    spinner.start("⏳ Waiting for page to stabilize...", { color: "green", spinner: "dots5" });
+
     // Wait for network activity to complete
     await page.waitForLoadState("networkidle");
 
@@ -150,6 +180,7 @@ const waitForStability = async (page: Page): Promise<Result<void, BrowserError>>
     });
 
     if (animationsInProgress) {
+      spinner.update("⏳ Waiting for animations to complete...");
       // Wait a bit longer if animations are still detected
       await page.waitForTimeout(1000);
     }
@@ -160,8 +191,10 @@ const waitForStability = async (page: Page): Promise<Result<void, BrowserError>>
     // Final short wait to ensure everything is settled
     await page.waitForTimeout(300);
 
+    spinner.succeed("✅ Page is ready for analysis");
     return Ok(undefined);
   } catch (error) {
+    spinner.fail("❌ Failed to stabilize page");
     return Err({
       message: "Failed while waiting for page stability",
       cause: error,

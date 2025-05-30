@@ -40,6 +40,7 @@
   "homepage": "https://github.com/alexberriman/visual-dom-auditor#readme",
   "dependencies": {
     "commander": "^12.0.0",
+    "ora": "^8.2.0",
     "pino": "^9.7.0",
     "pino-pretty": "^13.0.0",
     "playwright-core": "^1.41.0",
