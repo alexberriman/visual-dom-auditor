@@ -46,6 +46,7 @@ vi.mock("./core/detectors/console-error", () => ({
 
 vi.mock("./core/detectors", () => ({
   detectors: {},
+  disabledDetectors: {},
 }));
 
 // Import the mocked modules
@@ -81,6 +82,7 @@ describe("main", () => {
       viewport: { width: 1920, height: 1080 },
       format: "json" as const,
       exitEarly: false,
+      detectors: undefined,
     };
 
     // Mock successful CLI parsing

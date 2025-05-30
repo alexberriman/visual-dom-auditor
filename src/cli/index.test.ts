@@ -186,4 +186,141 @@ describe("parseCli", () => {
       }
     });
   });
+
+  describe("detector parsing", () => {
+    it("uses undefined detectors when no detectors specified", () => {
+      const restore = mockProcessArgv(["--url", "https://example.com"]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val.detectors).toBeUndefined();
+      }
+    });
+
+    it("parses comma-separated detectors correctly", () => {
+      const restore = mockProcessArgv([
+        "--url",
+        "https://example.com",
+        "--detectors",
+        "console-error,overlap,padding",
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val.detectors).toEqual(["console-error", "overlap", "padding"]);
+      }
+    });
+
+    it("parses space-separated detectors correctly", () => {
+      const restore = mockProcessArgv([
+        "--url",
+        "https://example.com",
+        "--detectors",
+        "console-error overlap padding",
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val.detectors).toEqual(["console-error", "overlap", "padding"]);
+      }
+    });
+
+    it("parses mixed comma and space-separated detectors correctly", () => {
+      const restore = mockProcessArgv([
+        "--url",
+        "https://example.com",
+        "--detectors",
+        "console-error, overlap spacing",
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val.detectors).toEqual(["console-error", "overlap", "spacing"]);
+      }
+    });
+
+    it("handles disabled detectors correctly", () => {
+      const restore = mockProcessArgv([
+        "--url",
+        "https://example.com",
+        "--detectors",
+        "centering,overlap",
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val.detectors).toEqual(["centering", "overlap"]);
+      }
+    });
+
+    it("returns error for unknown detector", () => {
+      const restore = mockProcessArgv([
+        "--url",
+        "https://example.com",
+        "--detectors",
+        "unknown-detector,overlap",
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.err).toBe(true);
+      if (result.err) {
+        expect(result.val.message).toContain("Unknown detector: unknown-detector");
+        expect(result.val.message).toContain("Available detectors:");
+      }
+    });
+
+    it("handles empty detector string correctly", () => {
+      const restore = mockProcessArgv(["--url", "https://example.com", "--detectors", ""]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val.detectors).toBeUndefined();
+      }
+    });
+
+    it("filters out empty detector names from input", () => {
+      const restore = mockProcessArgv([
+        "--url",
+        "https://example.com",
+        "--detectors",
+        "overlap, , spacing, ,",
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val.detectors).toEqual(["overlap", "spacing"]);
+      }
+    });
+  });
 });

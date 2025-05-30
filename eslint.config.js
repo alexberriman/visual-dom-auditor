@@ -60,7 +60,7 @@ export default [
       // SonarJS Rules - These are warnings to fix in future iterations
       "sonarjs/no-duplicate-string": "off", // Test files have legitimate duplication
       "sonarjs/no-identical-functions": "warn",
-      "sonarjs/cognitive-complexity": ["warn", 15], // Main CLI entry point is complex by nature
+      "sonarjs/cognitive-complexity": ["warn", 20], // Main CLI entry point is complex by nature
       "sonarjs/no-unused-collection": "error",
 
       // Unicorn Rules

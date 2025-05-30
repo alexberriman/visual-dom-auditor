@@ -20,6 +20,7 @@ export type Config = {
   readonly format: OutputFormat;
   readonly savePath?: string;
   readonly exitEarly: boolean;
+  readonly detectors?: readonly string[];
 };
 
 /**

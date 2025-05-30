@@ -42,19 +42,33 @@ const initializeIssueCounters = (): IssueCounters => {
 };
 
 /**
- * Run all detectors on the page
+ * Run specified detectors on the page
  */
 const runDetectors = async (
   page: import("playwright-core").Page,
-  consoleDetector?: import("./core/detectors/console-error").ConsoleErrorDetector
+  consoleDetector?: import("./core/detectors/console-error").ConsoleErrorDetector,
+  selectedDetectors?: readonly string[]
 ): Promise<IssueCounters> => {
   const counters = initializeIssueCounters();
 
   // Import individual detectors
-  const { detectors } = await import("./core/detectors");
+  const { detectors, disabledDetectors } = await import("./core/detectors");
+
+  // Combine enabled and disabled detectors for selection
+  const allDetectors = { ...detectors, ...disabledDetectors };
+
+  // Determine which detectors to run
+  const detectorsToRun =
+    selectedDetectors && selectedDetectors.length > 0
+      ? Object.fromEntries(
+          selectedDetectors
+            .filter((name) => name in allDetectors)
+            .map((name) => [name, allDetectors[name]])
+        )
+      : detectors; // Use default enabled detectors if none specified
 
   // Run each detector separately to prevent one failure from stopping everything
-  for (const [name, detector] of Object.entries(detectors)) {
+  for (const [name, detector] of Object.entries(detectorsToRun)) {
     try {
       let result;
 
@@ -262,7 +276,7 @@ const processSingleUrl = async (config: import("./types/config").Config): Promis
 
   try {
     // Run all detectors and collect results
-    const counters = await runDetectors(page, consoleDetector);
+    const counters = await runDetectors(page, consoleDetector, config.detectors);
 
     // Create audit result
     const auditResult = createSingleUrlAuditResult(config.urls[0], config.viewport, counters);
@@ -320,7 +334,7 @@ const processMultipleUrls = async (config: import("./types/config").Config): Pro
 
       try {
         // Run all detectors and collect results
-        const counters = await runDetectors(page, consoleDetector);
+        const counters = await runDetectors(page, consoleDetector, config.detectors);
 
         // Create audit result for this URL
         const urlResult = createSingleUrlAuditResult(url, config.viewport, counters);

@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import type { Config } from "../types/config";
 import { Ok, Err, type Result } from "../types/ts-results";
+import { detectors, disabledDetectors } from "../core/detectors";
 
 const VIEWPORT_PRESETS = {
   desktop: "1920x1080",
@@ -10,6 +11,36 @@ const VIEWPORT_PRESETS = {
 
 type ParseCliError = {
   message: string;
+};
+
+/**
+ * Validates detector input from command line options
+ */
+const validateDetectors = (detectorInput?: string): Result<string[], ParseCliError> => {
+  if (!detectorInput) {
+    return Ok([]);
+  }
+
+  // Parse detectors separated by comma or space
+  const detectorNames = detectorInput
+    .split(/[,\s]+/)
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
+
+  // Get all available detector names (enabled + disabled)
+  const availableDetectors = { ...detectors, ...disabledDetectors };
+  const availableNames = Object.keys(availableDetectors);
+
+  // Validate detector names
+  for (const name of detectorNames) {
+    if (!availableNames.includes(name)) {
+      return Err({
+        message: `Unknown detector: ${name}. Available detectors: ${availableNames.join(", ")}`,
+      });
+    }
+  }
+
+  return Ok(detectorNames);
 };
 
 /**
@@ -71,7 +102,11 @@ export const parseCli = (): Result<Config, ParseCliError> => {
     )
     .option("--format <format>", "Output format", "json")
     .option("--save <path>", "Save output to file")
-    .option("--exit-early", "Exit on first critical error found");
+    .option("--exit-early", "Exit on first critical error found")
+    .option(
+      "--detectors <detectors>",
+      "Comma or space-separated list of detectors to run (omit to use defaults)"
+    );
 
   program.parse();
 
@@ -83,6 +118,13 @@ export const parseCli = (): Result<Config, ParseCliError> => {
     return urlValidationResult;
   }
   const urls = urlValidationResult.val;
+
+  // Validate detector input
+  const detectorValidationResult = validateDetectors(options.detectors);
+  if (detectorValidationResult.err) {
+    return detectorValidationResult;
+  }
+  const selectedDetectors = detectorValidationResult.val;
 
   // Process viewport
   let viewportWidth = 1920;
@@ -121,5 +163,6 @@ export const parseCli = (): Result<Config, ParseCliError> => {
     format: options.format || "json",
     savePath: options.save,
     exitEarly: Boolean(options.exitEarly),
+    detectors: selectedDetectors.length > 0 ? selectedDetectors : undefined,
   });
 };

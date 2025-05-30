@@ -62,6 +62,7 @@ npx @alexberriman/visual-dom-auditor --url https://example.com
 | `--format <format>` | Output format | `json` |
 | `--save <path>` | Save output to file (e.g., `./reports/audit.json`) | - |
 | `--exit-early` | Exit immediately when the first critical error is found | `false` |
+| `--detectors <detectors>` | Comma or space-separated list of detectors to run (e.g., `console-error,overlap`) | All enabled detectors |
 
 **Note:** Use either `--url` for single URL analysis or `--urls` for multiple URLs, but not both.
 
@@ -90,6 +91,15 @@ npx @alexberriman/visual-dom-auditor --urls \
   https://example.com/contact \
   https://example.com/products \
   --save ./reports/site-audit.json
+
+# Run only specific detectors
+npx @alexberriman/visual-dom-auditor --url https://example.com --detectors "console-error,overlap"
+
+# Run multiple detectors with space separation
+npx @alexberriman/visual-dom-auditor --url https://example.com --detectors "padding spacing container-overflow"
+
+# Include disabled detectors like centering
+npx @alexberriman/visual-dom-auditor --url https://example.com --detectors "centering,overlap,console-error"
 ```
 
 ## 🧪 Detection Types
@@ -347,9 +357,38 @@ The tool outputs structured JSON reports. The format differs depending on whethe
 
 ## ⚙️ Advanced Configuration
 
-### Enabling Disabled Detectors
+### Available Detectors
 
-Some detectors (such as the centering detector) are disabled by default due to generating too many false positives. You can enable them in your code by importing them directly:
+**Enabled by default:**
+- `overlap` - Overlapping elements detector
+- `padding` - Button padding detector 
+- `spacing` - Element spacing detector
+- `container-overflow` - Container overflow detector
+- `scrollbar` - Unexpected scrollbar detector
+- `flex-grid` - Flex/Grid layout detector
+- `console-error` - Console error detector
+
+**Disabled by default (due to high false positive rate):**
+- `centering` - Element centering detector
+
+### Selecting Detectors
+
+Use the `--detectors` option to run only specific detectors:
+
+```bash
+# Run only console errors and overlap detection
+npx @alexberriman/visual-dom-auditor --url https://example.com --detectors "console-error,overlap"
+
+# Enable a disabled detector
+npx @alexberriman/visual-dom-auditor --url https://example.com --detectors "centering,padding"
+
+# Use space separation
+npx @alexberriman/visual-dom-auditor --url https://example.com --detectors "padding spacing container-overflow"
+```
+
+### Programmatic Usage
+
+You can also enable disabled detectors in your code by importing them directly:
 
 ```javascript
 import { analyzePage } from "@alexberriman/visual-dom-auditor/core/analyzer";
