@@ -408,11 +408,19 @@ const processCrawl = async (config: import("./types/config").Config): Promise<nu
     ): Promise<
       import("./types/ts-results").Result<import("./types/issues").SingleUrlAuditResult, unknown>
     > => {
+      // Set URL context for spinner and logger
+      spinner.setUrlContext(url);
+      setLoggerUrlContext(url);
+
       // Run all detectors and collect results
       const counters = await runDetectors(page, consoleDetector, config.detectors);
 
       // Create audit result for this URL
       const auditResult = createSingleUrlAuditResult(url, config.viewport, counters);
+
+      // Clear URL context after processing
+      spinner.setUrlContext(null);
+      setLoggerUrlContext(null);
 
       // Validate results
       if (!validateResult(auditResult)) {
