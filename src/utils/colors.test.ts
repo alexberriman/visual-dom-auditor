@@ -12,6 +12,9 @@ describe("colors utility", () => {
   const originalEnv = process.env;
   const originalIsTTY = process.stdout.isTTY;
 
+  // ANSI escape character for color codes
+  const ESC = String.fromCharCode(27);
+
   beforeEach(() => {
     // Reset environment
     process.env = { ...originalEnv };
@@ -31,7 +34,7 @@ describe("colors utility", () => {
     it("should format a valid URL with domain extraction", () => {
       const result = formatUrl("https://example.com/path?query=1");
       expect(result).toContain("[example.com]");
-      expect(result).toContain("\x1b["); // Should contain ANSI codes
+      expect(result).toContain(ESC + "["); // Should contain ANSI codes
     });
 
     it("should handle URLs without protocol", () => {
@@ -43,13 +46,66 @@ describe("colors utility", () => {
       const result = formatUrl("not-a-url");
       expect(result).toContain("[not-a-url]");
     });
+
+    it("should use consistent colors for the same domain", () => {
+      const result1 = formatUrl("https://example.com");
+      const result2 = formatUrl("https://example.com/path");
+
+      // Extract color codes using dynamic regex to avoid ESLint control character issues
+      const colorRegex = new RegExp(ESC + "\\[(\\d+)m");
+      const colorMatch1 = result1.match(colorRegex);
+      const colorMatch2 = result2.match(colorRegex);
+
+      expect(colorMatch1).not.toBeNull();
+      expect(colorMatch2).not.toBeNull();
+
+      if (colorMatch1 && colorMatch2) {
+        expect(colorMatch1[1]).toBe(colorMatch2[1]);
+      }
+    });
+
+    it("should use different colors for different domains", () => {
+      // Test different domains that should hash to different colors
+      const testDomains = [
+        "https://example.com",
+        "https://google.com",
+        "https://github.com",
+        "https://stackoverflow.com",
+        "https://reddit.com",
+        "https://twitter.com",
+        "https://facebook.com",
+        "https://youtube.com",
+      ];
+
+      // Extract color codes - need to look for bold + color pattern
+      const colors = testDomains.map((url) => {
+        const result = formatUrl(url);
+        // Match the pattern: bold (ESC[1m) followed by color (ESC[XXm)
+        const boldColorRegex = new RegExp(ESC + "\\[1m" + ESC + "\\[(\\d+)m");
+        const matches = result.match(boldColorRegex);
+        if (matches) {
+          return matches[1];
+        }
+        // Try just color code without bold
+        const colorOnlyRegex = new RegExp(ESC + "\\[(\\d+)m");
+        const colorOnly = result.match(colorOnlyRegex);
+        return colorOnly ? colorOnly[1] : null;
+      });
+
+      // Check if we got any color codes at all
+      const validColors = colors.filter((c) => c !== null);
+
+      // At least some should be different
+      const uniqueColors = new Set(validColors);
+      expect(uniqueColors.size).toBeGreaterThan(1);
+    });
   });
 
   describe("formatBrowser", () => {
     it("should format browser name with color and bold", () => {
       const result = formatBrowser("Chromium");
       expect(result).toContain("Chromium");
-      expect(result).toContain("\x1b["); // Should contain ANSI codes
+      expect(result).toContain(ESC + "["); // Should contain ANSI codes
     });
   });
 
@@ -140,6 +196,77 @@ describe("colors utility", () => {
     it("should handle invalid URLs gracefully", () => {
       const result = createUrlPrefix("invalid-url");
       expect(result).toContain("[invalid-url]");
+    });
+
+    it("should use consistent colors for the same domain", () => {
+      Object.defineProperty(process.stdout, "isTTY", {
+        value: true,
+        writable: true,
+      });
+      delete process.env.CI;
+      delete process.env.NODE_ENV;
+
+      const result1 = createUrlPrefix("https://example.com");
+      const result2 = createUrlPrefix("https://example.com/page");
+      const result3 = createUrlPrefix("https://example.com/other");
+
+      // Extract color codes from results
+      const colorRegex = new RegExp(ESC + "\\[(\\d+)m");
+      const colorMatch1 = result1.match(colorRegex);
+      const colorMatch2 = result2.match(colorRegex);
+      const colorMatch3 = result3.match(colorRegex);
+
+      expect(colorMatch1).not.toBeNull();
+      expect(colorMatch2).not.toBeNull();
+      expect(colorMatch3).not.toBeNull();
+
+      // All URLs from same domain should have same color
+      if (colorMatch1 && colorMatch2 && colorMatch3) {
+        expect(colorMatch1[1]).toBe(colorMatch2[1]);
+        expect(colorMatch2[1]).toBe(colorMatch3[1]);
+      }
+    });
+
+    it("should use different colors for different domains", () => {
+      Object.defineProperty(process.stdout, "isTTY", {
+        value: true,
+        writable: true,
+      });
+      delete process.env.CI;
+      delete process.env.NODE_ENV;
+
+      // Use more domains to ensure we get color variety
+      const domains = [
+        "https://example.com",
+        "https://google.com",
+        "https://github.com",
+        "https://stackoverflow.com",
+        "https://npmjs.com",
+        "https://reddit.com",
+        "https://twitter.com",
+        "https://youtube.com",
+      ];
+
+      const colors = domains.map((url) => {
+        const result = createUrlPrefix(url);
+        // Match the pattern: bold (ESC[1m) followed by color (ESC[XXm)
+        const boldColorRegex = new RegExp(ESC + "\\[1m" + ESC + "\\[(\\d+)m");
+        const matches = result.match(boldColorRegex);
+        if (matches) {
+          return matches[1];
+        }
+        // Try just color code without bold
+        const colorOnlyRegex = new RegExp(ESC + "\\[(\\d+)m");
+        const colorOnly = result.match(colorOnlyRegex);
+        return colorOnly ? colorOnly[1] : null;
+      });
+
+      // Check if we got any color codes at all
+      const validColors = colors.filter((c) => c !== null);
+
+      // At least some domains should have different colors
+      const uniqueColors = new Set(validColors);
+      expect(uniqueColors.size).toBeGreaterThan(1);
     });
   });
 

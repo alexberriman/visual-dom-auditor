@@ -33,6 +33,51 @@ const colors = {
 } as const;
 
 /**
+ * Available colors for URL prefixes (excluding colors that are hard to read)
+ */
+const urlColors: Array<keyof typeof colors> = [
+  "brightBlue",
+  "brightGreen",
+  "brightCyan",
+  "brightMagenta",
+  "brightYellow",
+  "blue",
+  "green",
+  "cyan",
+  "magenta",
+  "yellow",
+];
+
+/**
+ * Simple hash function to convert string to number
+ */
+const hashString = (str: string): number => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash);
+};
+
+/**
+ * Get a consistent color for a given URL
+ */
+const getUrlColor = (url: string): keyof typeof colors => {
+  try {
+    // Use just the domain for color selection to keep consistency across paths
+    const domain = new URL(url).hostname;
+    const hash = hashString(domain);
+    const colorIndex = hash % urlColors.length;
+    return urlColors[colorIndex];
+  } catch {
+    // Fallback to default color if URL parsing fails
+    return "brightBlue";
+  }
+};
+
+/**
  * Format text with the given color and optionally bold
  */
 const formatText = (text: string, color: keyof typeof colors, bold = false): string => {
@@ -43,15 +88,16 @@ const formatText = (text: string, color: keyof typeof colors, bold = false): str
 
 /**
  * Format a URL for display with brackets, bold, and color
- * Example: [example.com] in bold blue
+ * Example: [example.com] in bold with a consistent color based on domain
  */
 export const formatUrl = (url: string): string => {
+  const color = getUrlColor(url);
   try {
     const domain = new URL(url).hostname;
-    return formatText(`[${domain}]`, "brightBlue", true);
+    return formatText(`[${domain}]`, color, true);
   } catch {
     // Fallback if URL parsing fails
-    return formatText(`[${url}]`, "brightBlue", true);
+    return formatText(`[${url}]`, color, true);
   }
 };
 
@@ -99,10 +145,11 @@ export const conditionalFormat = (_text: string, formatter: (_text: string) => s
 };
 
 /**
- * Create a URL prefix for log messages
+ * Create a URL prefix for log messages with consistent color based on domain
  * Example: "[example.com] Loading page..." or "[example.com/path] Processing..."
  */
 export const createUrlPrefix = (url: string): string => {
+  const color = getUrlColor(url);
   try {
     const urlObj = new URL(url);
     const domain = urlObj.hostname;
@@ -110,10 +157,10 @@ export const createUrlPrefix = (url: string): string => {
 
     // Show just domain for root paths, domain + path for nested paths
     const displayUrl = path === "/" || path === "" ? domain : `${domain}${path}`;
-    return conditionalFormat(`[${displayUrl}]`, (text) => formatText(text, "brightBlue", true));
+    return conditionalFormat(`[${displayUrl}]`, (text) => formatText(text, color, true));
   } catch {
     // Fallback if URL parsing fails
-    return conditionalFormat(`[${url}]`, (text) => formatText(text, "brightBlue", true));
+    return conditionalFormat(`[${url}]`, (text) => formatText(text, color, true));
   }
 };
 
