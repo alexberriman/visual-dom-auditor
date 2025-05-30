@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import type { Config } from "../types/config";
+import type { Config, CrawlConfig } from "../types/config";
 import { Ok, Err, type Result } from "../types/ts-results";
 import { detectors, disabledDetectors } from "../core/detectors";
 
@@ -49,6 +49,7 @@ const validateDetectors = (detectorInput?: string): Result<string[], ParseCliErr
 const validateUrls = (options: {
   url?: string;
   urls?: string[];
+  crawl?: boolean;
 }): Result<string[], ParseCliError> => {
   const urls: string[] = [];
 
@@ -61,6 +62,13 @@ const validateUrls = (options: {
 
   if (!options.url && !options.urls) {
     return Err({ message: "Either --url or --urls is required" });
+  }
+
+  // When crawling, only allow single URL
+  if (options.crawl && options.urls && options.urls.length > 1) {
+    return Err({
+      message: "Crawling mode only supports a single starting URL. Use --url instead of --urls",
+    });
   }
 
   if (options.url) {
@@ -107,7 +115,11 @@ export const parseCli = (): Result<Config, ParseCliError> => {
       "--detectors <detectors>",
       "Comma or space-separated list of detectors to run (omit to use defaults)"
     )
-    .option("--verbose", "Enable verbose logging");
+    .option("--verbose", "Enable verbose logging")
+    .option("--crawl", "Enable crawling mode to discover and analyze linked pages")
+    .option("--max-depth <number>", "Maximum crawl depth", "3")
+    .option("--max-pages <number>", "Maximum total pages to crawl", "50")
+    .option("--max-threads <number>", "Maximum concurrent threads for crawling", "3");
 
   program.parse();
 
@@ -160,6 +172,56 @@ export const parseCli = (): Result<Config, ParseCliError> => {
     });
   }
 
+  // Parse and validate crawling options
+  let crawlConfig: CrawlConfig | undefined;
+  if (options.crawl) {
+    const maxDepth = parseInt(options.maxDepth, 10);
+    const maxPages = parseInt(options.maxPages, 10);
+    const maxThreads = parseInt(options.maxThreads, 10);
+
+    if (isNaN(maxDepth) || maxDepth < 1 || maxDepth > 10) {
+      return Err({
+        message: "Invalid max-depth: must be a number between 1 and 10",
+      });
+    }
+
+    if (isNaN(maxPages) || maxPages < 1 || maxPages > 1000) {
+      return Err({
+        message: "Invalid max-pages: must be a number between 1 and 1000",
+      });
+    }
+
+    if (isNaN(maxThreads) || maxThreads < 1 || maxThreads > 10) {
+      return Err({
+        message: "Invalid max-threads: must be a number between 1 and 10",
+      });
+    }
+
+    crawlConfig = {
+      enabled: true,
+      maxDepth,
+      maxPages,
+      maxThreads,
+      includeSubdomains: true,
+      excludePatterns: [
+        "/login",
+        "/logout",
+        "/signin",
+        "/signup",
+        "/register",
+        "/admin",
+        "/dashboard",
+        "/account",
+        "/profile",
+        "/download",
+        "/print",
+        "/pdf",
+        "/export",
+      ],
+      includePatterns: [],
+    };
+  }
+
   return Ok({
     urls,
     viewport: {
@@ -170,5 +232,6 @@ export const parseCli = (): Result<Config, ParseCliError> => {
     savePath: options.save,
     exitEarly: Boolean(options.exitEarly),
     detectors: selectedDetectors.length > 0 ? selectedDetectors : undefined,
+    crawl: crawlConfig,
   });
 };

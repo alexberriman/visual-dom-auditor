@@ -181,6 +181,22 @@ export type MultiUrlAuditResult = {
 };
 
 /**
+ * Crawl audit result (extends MultiUrlAuditResult with crawl metadata)
+ */
+export type CrawlAuditResult = MultiUrlAuditResult & {
+  readonly crawlMetadata: {
+    readonly startUrl: string;
+    readonly maxDepthReached: number;
+    readonly totalPagesDiscovered: number;
+    readonly pagesSkipped: number;
+    readonly crawlDuration: number;
+    readonly averagePageTime: number;
+    readonly successfulPages: number;
+    readonly failedPages: number;
+  };
+};
+
+/**
  * Audit result (backwards compatibility)
  */
-export type AuditResult = SingleUrlAuditResult | MultiUrlAuditResult;
+export type AuditResult = SingleUrlAuditResult | MultiUrlAuditResult | CrawlAuditResult;

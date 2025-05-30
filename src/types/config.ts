@@ -12,6 +12,19 @@ export type Viewport = {
 export type OutputFormat = "json";
 
 /**
+ * Crawling configuration
+ */
+export type CrawlConfig = {
+  readonly enabled: boolean;
+  readonly maxDepth: number;
+  readonly maxPages: number;
+  readonly maxThreads: number;
+  readonly includeSubdomains: boolean;
+  readonly excludePatterns: readonly string[];
+  readonly includePatterns: readonly string[];
+};
+
+/**
  * CLI configuration
  */
 export type Config = {
@@ -21,6 +34,7 @@ export type Config = {
   readonly savePath?: string;
   readonly exitEarly: boolean;
   readonly detectors?: readonly string[];
+  readonly crawl?: CrawlConfig;
 };
 
 /**

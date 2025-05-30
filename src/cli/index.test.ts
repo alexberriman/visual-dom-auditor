@@ -323,4 +323,187 @@ describe("parseCli", () => {
       }
     });
   });
+
+  describe("crawling options", () => {
+    it("should parse crawl flag correctly", () => {
+      const restore = mockProcessArgv(["--url", "https://example.com", "--crawl"]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val.crawl).toBeDefined();
+        expect(result.val.crawl?.enabled).toBe(true);
+        expect(result.val.crawl?.maxDepth).toBe(3); // default
+        expect(result.val.crawl?.maxPages).toBe(50); // default
+        expect(result.val.crawl?.maxThreads).toBe(3); // default
+      }
+    });
+
+    it("should parse custom crawl limits", () => {
+      const restore = mockProcessArgv([
+        "--url",
+        "https://example.com",
+        "--crawl",
+        "--max-depth",
+        "5",
+        "--max-pages",
+        "100",
+        "--max-threads",
+        "4",
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val.crawl?.maxDepth).toBe(5);
+        expect(result.val.crawl?.maxPages).toBe(100);
+        expect(result.val.crawl?.maxThreads).toBe(4);
+      }
+    });
+
+    it("should reject invalid max-depth", () => {
+      const restore = mockProcessArgv([
+        "--url",
+        "https://example.com",
+        "--crawl",
+        "--max-depth",
+        "15", // exceeds limit of 10
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(false);
+      if (result.err) {
+        expect(result.val.message).toContain("Invalid max-depth");
+      }
+    });
+
+    it("should reject invalid max-pages", () => {
+      const restore = mockProcessArgv([
+        "--url",
+        "https://example.com",
+        "--crawl",
+        "--max-pages",
+        "2000", // exceeds limit of 1000
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(false);
+      if (result.err) {
+        expect(result.val.message).toContain("Invalid max-pages");
+      }
+    });
+
+    it("should reject invalid max-threads", () => {
+      const restore = mockProcessArgv([
+        "--url",
+        "https://example.com",
+        "--crawl",
+        "--max-threads",
+        "20", // exceeds limit of 10
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(false);
+      if (result.err) {
+        expect(result.val.message).toContain("Invalid max-threads");
+      }
+    });
+
+    it("should reject crawling with multiple URLs", () => {
+      const restore = mockProcessArgv([
+        "--urls",
+        "https://example.com",
+        "https://test.com",
+        "--crawl",
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(false);
+      if (result.err) {
+        expect(result.val.message).toContain("Crawling mode only supports a single starting URL");
+      }
+    });
+
+    it("should allow crawling with single URL from --urls", () => {
+      const restore = mockProcessArgv(["--urls", "https://example.com", "--crawl"]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val.crawl?.enabled).toBe(true);
+      }
+    });
+
+    it("should not set crawl config when flag not provided", () => {
+      const restore = mockProcessArgv(["--url", "https://example.com"]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.val.crawl).toBeUndefined();
+      }
+    });
+
+    it("should handle non-numeric crawl parameters", () => {
+      const restore = mockProcessArgv([
+        "--url",
+        "https://example.com",
+        "--crawl",
+        "--max-depth",
+        "abc",
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(false);
+      if (result.err) {
+        expect(result.val.message).toContain("Invalid max-depth");
+      }
+    });
+
+    it("should reject negative crawl parameters", () => {
+      const restore = mockProcessArgv([
+        "--url",
+        "https://example.com",
+        "--crawl",
+        "--max-pages",
+        "-5",
+      ]);
+
+      const result = parseCli();
+
+      restore();
+
+      expect(result.ok).toBe(false);
+      if (result.err) {
+        expect(result.val.message).toContain("Invalid max-pages");
+      }
+    });
+  });
 });

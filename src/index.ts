@@ -3,6 +3,7 @@
 import { parseCli } from "./cli";
 import { preparePage, preparePageForUrl, closeBrowser } from "./core/browser";
 import { validateResult, type Detector } from "./core/analyzer";
+import { Ok, Err } from "./types/ts-results";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright-core";
@@ -299,6 +300,11 @@ const main = async (): Promise<number> => {
   const config = cliResult.val;
 
   try {
+    // Handle crawling mode
+    if (config.crawl?.enabled) {
+      return await processCrawl(config);
+    }
+
     // Handle single URL case (backwards compatibility)
     if (config.urls.length === 1) {
       return await processSingleUrl(config);
@@ -348,6 +354,75 @@ const processSingleUrl = async (config: import("./types/config").Config): Promis
       console.error("Error: Generated invalid results structure");
       return 1;
     }
+
+    // Output results
+    await outputResults(auditResult, config.savePath);
+
+    return 0;
+  } finally {
+    // Always close the browser
+    await closeBrowser(browser);
+  }
+};
+
+/**
+ * Process crawling mode
+ */
+const processCrawl = async (config: import("./types/config").Config): Promise<number> => {
+  if (!config.crawl?.enabled) {
+    console.error("Error: Crawling is not enabled in config");
+    return 1;
+  }
+
+  const { CrawlerEngine } = await import("./core/crawler");
+
+  // Launch browser once for the entire crawl
+  const browserName = conditionalFormat("Chromium", formatBrowser);
+  spinner.setUrlContext(null);
+  setLoggerUrlContext(null);
+  spinner.start(`🚀 Launching ${browserName} browser for crawling...`, {
+    color: "blue",
+    spinner: "dots",
+  });
+  const browser = await chromium.launch({ headless: true });
+  spinner.succeed(`✅ ${browserName} browser launched successfully`);
+
+  try {
+    // Create page processor function that integrates with existing analyzer
+    const pageProcessor = async (
+      page: import("playwright-core").Page,
+      url: string,
+      consoleDetector?: import("./core/detectors/console-error").ConsoleErrorDetector
+    ): Promise<
+      import("./types/ts-results").Result<import("./types/issues").SingleUrlAuditResult, unknown>
+    > => {
+      // Run all detectors and collect results
+      const counters = await runDetectors(page, consoleDetector, config.detectors);
+
+      // Create audit result for this URL
+      const auditResult = createSingleUrlAuditResult(url, config.viewport, counters);
+
+      // Validate results
+      if (!validateResult(auditResult)) {
+        return Err({ message: "Generated invalid results structure" });
+      }
+
+      return Ok(auditResult);
+    };
+
+    // Create and start crawler
+    const crawler = new CrawlerEngine(config, config.crawl, pageProcessor);
+    const crawlResult = await crawler.crawl(browser);
+
+    if (crawlResult.err) {
+      console.error(`Error: ${crawlResult.val.message}`);
+      return 1;
+    }
+
+    const auditResult = crawlResult.val;
+
+    // Clear spinner before outputting results
+    spinner.clear();
 
     // Output results
     await outputResults(auditResult, config.savePath);

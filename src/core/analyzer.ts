@@ -4,6 +4,7 @@ import type {
   AuditResult,
   SingleUrlAuditResult,
   MultiUrlAuditResult,
+  CrawlAuditResult,
   Issue,
   IssueType,
 } from "../types/issues";
@@ -131,6 +132,23 @@ const validateMultiUrlResult = (result: MultiUrlAuditResult): boolean => {
 };
 
 /**
+ * Validate crawl audit result
+ */
+const validateCrawlResult = (result: CrawlAuditResult): boolean => {
+  return (
+    validateMultiUrlResult(result) &&
+    !!(
+      result.crawlMetadata &&
+      result.crawlMetadata.startUrl &&
+      typeof result.crawlMetadata.maxDepthReached === "number" &&
+      typeof result.crawlMetadata.totalPagesDiscovered === "number" &&
+      typeof result.crawlMetadata.pagesSkipped === "number" &&
+      typeof result.crawlMetadata.crawlDuration === "number"
+    )
+  );
+};
+
+/**
  * Validate the audit result
  *
  * This function validates that the audit result has the expected structure.
@@ -143,6 +161,11 @@ export const validateResult = (result: AuditResult): boolean => {
   // Check if it's a single URL result (has url property)
   if ("url" in result) {
     return validateSingleUrlResult(result as SingleUrlAuditResult);
+  }
+
+  // Check if it's a crawl result (has crawlMetadata property)
+  if ("crawlMetadata" in result) {
+    return validateCrawlResult(result as CrawlAuditResult);
   }
 
   // Otherwise, it's a multi-URL result (has results property)

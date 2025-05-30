@@ -17,6 +17,8 @@
 - **🤖 Automated Visual Testing:** Launches headless browser to render and analyze web pages
 - **🧠 Smart Detection:** Identifies visual issues that traditional linters miss
 - **📱 Responsive Testing:** Tests layouts across multiple device sizes (mobile, tablet, desktop)
+- **🕷️ Intelligent Crawling:** Automatically discovers and analyzes linked pages across your entire site
+- **⚡ Concurrent Processing:** Multi-threaded crawling for faster site-wide analysis
 - **🔍 Comprehensive Analysis:** Detects various layout issues:
   - Overlapping elements
   - Buttons with missing/broken padding
@@ -64,8 +66,12 @@ npx @alexberriman/visual-dom-auditor --url https://example.com
 | `--exit-early` | Exit immediately when the first critical error is found | `false` |
 | `--detectors <detectors>` | Comma or space-separated list of detectors to run (e.g., `console-error,overlap`) | All enabled detectors |
 | `--verbose` | Enable verbose logging output | `false` |
+| `--crawl` | Enable crawling mode to discover and analyze linked pages | `false` |
+| `--max-depth <number>` | Maximum crawl depth (1-10) | `3` |
+| `--max-pages <number>` | Maximum total pages to crawl (1-1000) | `50` |
+| `--max-threads <number>` | Maximum concurrent threads for crawling (1-10) | `3` |
 
-**Note:** Use either `--url` for single URL analysis or `--urls` for multiple URLs, but not both.
+**Note:** Use either `--url` for single URL analysis or `--urls` for multiple URLs, but not both. When using `--crawl`, only a single starting URL is supported.
 
 ### Examples
 
@@ -107,6 +113,22 @@ npx @alexberriman/visual-dom-auditor --url https://example.com --verbose
 
 # Use environment variable for logging (alternative to --verbose)
 LOG_LEVEL=debug npx @alexberriman/visual-dom-auditor --url https://example.com
+
+# CRAWLING EXAMPLES
+# Basic website crawling (discovers and analyzes linked pages)
+npx @alexberriman/visual-dom-auditor --url https://example.com --crawl
+
+# Comprehensive site audit with custom limits
+npx @alexberriman/visual-dom-auditor --url https://example.com --crawl --max-depth 5 --max-pages 100
+
+# Fast crawling with increased concurrency
+npx @alexberriman/visual-dom-auditor --url https://example.com --crawl --max-threads 5 --max-pages 30
+
+# Crawl with early exit on critical issues and save detailed report
+npx @alexberriman/visual-dom-auditor --url https://example.com --crawl --exit-early --save ./reports/crawl-audit.json
+
+# Focused crawling with specific detectors
+npx @alexberriman/visual-dom-auditor --url https://example.com --crawl --detectors "console-error,overlap,padding" --max-depth 2
 ```
 
 ### Logging Behavior
@@ -128,6 +150,76 @@ npx @alexberriman/visual-dom-auditor --url https://example.com | jq '.issues[] |
 
 # Count issues by type
 npx @alexberriman/visual-dom-auditor --url https://example.com | jq '.metadata.issuesByType'
+```
+
+## 🕷️ Site Crawling
+
+Visual DOM Auditor can intelligently crawl your website to discover and analyze all linked pages automatically, providing comprehensive site-wide audit reports.
+
+### How Crawling Works
+
+1. **Starting Point**: Begins analysis from your specified URL
+2. **Link Discovery**: Extracts all internal navigational links from each page
+3. **Intelligent Filtering**: Automatically excludes:
+   - External links (different domains)
+   - Non-navigational URLs (images, APIs, assets)
+   - Admin/authentication pages
+   - Previously visited pages
+4. **Concurrent Processing**: Analyzes multiple pages simultaneously for speed
+5. **Depth & Limit Controls**: Respects maximum depth and page count limits
+6. **Comprehensive Reporting**: Provides aggregated statistics across your entire site
+
+### Crawling Options
+
+- **`--max-depth`**: Controls how "deep" the crawler goes from your starting page (default: 3)
+- **`--max-pages`**: Limits total pages analyzed to prevent runaway crawls (default: 50)  
+- **`--max-threads`**: Number of pages analyzed concurrently (default: 3)
+- **`--exit-early`**: Stops crawling immediately when critical issues are found
+
+### Crawling Best Practices
+
+- Start with smaller limits (`--max-pages 20`) to test your site
+- Use `--exit-early` in CI/CD to fail fast on critical issues
+- Increase `--max-threads` for faster crawling (but be mindful of server load)
+- Save results with `--save` for detailed analysis and trending
+
+### Sample Crawl Output
+
+```json
+{
+  "timestamp": "2023-05-20T10:15:30Z",
+  "viewport": {"width": 1920, "height": 1080},
+  "results": [
+    {
+      "url": "https://example.com",
+      "issues": [...],
+      "metadata": {...}
+    },
+    {
+      "url": "https://example.com/about", 
+      "issues": [...],
+      "metadata": {...}
+    }
+  ],
+  "summary": {
+    "totalUrls": 15,
+    "urlsWithIssues": 8,
+    "totalIssuesFound": 23,
+    "criticalIssues": 2,
+    "majorIssues": 12,
+    "minorIssues": 9
+  },
+  "crawlMetadata": {
+    "startUrl": "https://example.com",
+    "maxDepthReached": 3,
+    "totalPagesDiscovered": 47,
+    "pagesSkipped": 32,
+    "crawlDuration": 45000,
+    "averagePageTime": 3000,
+    "successfulPages": 15,
+    "failedPages": 0
+  }
+}
 ```
 
 ## 🧪 Detection Types
@@ -281,6 +373,24 @@ jobs:
         with:
           name: audit-report
           path: report.json
+
+  # Example: Site-wide crawling audit
+  crawl-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+      - name: Run site crawl audit
+        run: npx @alexberriman/visual-dom-auditor --url https://staging.example.com --crawl --max-depth 3 --max-pages 25 --exit-early --save crawl-report.json
+      - name: Archive crawl results
+        uses: actions/upload-artifact@v3
+        with:
+          name: crawl-audit-report
+          path: crawl-report.json
 ```
 
 ## 📊 Interpreting Results
@@ -375,12 +485,44 @@ The tool outputs structured JSON reports. The format differs depending on whethe
 }
 ```
 
-**Key Benefits of Multiple URL Testing:**
+### Crawl Result Format
 
-- **Performance**: Reuses the same browser instance across all URLs, significantly faster than running separate audits
-- **Comprehensive reporting**: Get aggregated statistics across your entire site
-- **Early exit**: Use `--exit-early` to stop immediately when critical issues are found
-- **Sequential processing**: URLs are processed one by one to ensure consistent results
+When using `--crawl`, the tool provides an enhanced result format with additional crawling metadata:
+
+```json
+{
+  "timestamp": "2023-05-20T10:15:30Z",
+  "viewport": {"width": 1920, "height": 1080},
+  "results": [/* individual page results */],
+  "summary": {
+    "totalUrls": 15,
+    "urlsWithIssues": 8,
+    "totalIssuesFound": 23,
+    "criticalIssues": 2,
+    "majorIssues": 12,
+    "minorIssues": 9,
+    "issuesByType": {/* aggregated issue counts */}
+  },
+  "crawlMetadata": {
+    "startUrl": "https://example.com",
+    "maxDepthReached": 3,
+    "totalPagesDiscovered": 47,
+    "pagesSkipped": 32,
+    "crawlDuration": 45000,
+    "averagePageTime": 3000,
+    "successfulPages": 15,
+    "failedPages": 0
+  },
+  "exitedEarly": false
+}
+```
+
+**Key Benefits of Different Testing Modes:**
+
+- **Single URL**: Fast analysis of individual pages
+- **Multiple URL**: Reuses browser instance across specified URLs, faster than separate audits
+- **Crawling**: Automatically discovers your site structure and provides comprehensive analysis
+- **Performance**: All modes support concurrent processing and early exit for CI/CD optimization
 
 
 ## ⚙️ Advanced Configuration
