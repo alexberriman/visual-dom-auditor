@@ -1,6 +1,6 @@
 {
   "name": "@alexberriman/visual-dom-auditor",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "CLI tool for detecting critical layout issues on webpages using a headless browser",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
